@@ -11,14 +11,25 @@ async def cmd_catalog(message: Message):
     # Get all categories
     categories = await get_all_categories()
     
-    if not categories:
+    # Get all products to check if there are any
+    products = await get_all_products()
+    
+    if not products:
         await message.answer(
             "📚 Our catalog is currently empty. Please check back later!",
             reply_markup=get_main_keyboard(message.from_user.id)
         )
         return
     
-    # Show categories keyboard
+    # Check if we have categories, if not, just show all products
+    if not categories:
+        await message.answer(
+            "📚 We have some products available:",
+            reply_markup=get_products_keyboard(products)
+        )
+        return
+    
+    # If we have both products and categories, show the categories
     await message.answer(
         "📚 Select a category:",
         reply_markup=get_categories_keyboard(categories)

@@ -101,18 +101,27 @@ async def get_user_by_username(username: str) -> User:
 async def get_all_products(available_only: bool = True):
     """Get all products, optionally filtered by availability"""
     async with async_session() as session:
-        if available_only:
-            query = select(Product).where(Product.available == True)
-        else:
-            query = select(Product)
-        
-        result = await session.execute(query)
-        return result.scalars().all()
+        try:
+            if available_only:
+                query = select(Product).where(Product.available == True)
+            else:
+                query = select(Product)
+            
+            result = await session.execute(query)
+            products = result.scalars().all()
+            # Log the number of products found for debugging
+            logger.info(f"Retrieved {len(products)} products (available_only={available_only})")
+            return products
+        except Exception as e:
+            logger.error(f"Error getting products: {e}")
+            return []
 
 async def get_product(product_id: int):
-    """Get product by ID"""
+    """Get product by ID with category eagerly loaded"""
     async with async_session() as session:
-        query = select(Product).where(Product.id == product_id)
+        # Use joinedload to eagerly load the category relationship
+        from sqlalchemy.orm import joinedload
+        query = select(Product).options(joinedload(Product.category)).where(Product.id == product_id)
         result = await session.execute(query)
         return result.scalars().first()
 

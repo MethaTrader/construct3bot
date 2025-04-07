@@ -86,13 +86,22 @@ async def admin_product_actions(callback: CallbackQuery):
         await callback.answer("Product not found.", show_alert=True)
         return
     
+    # Get category name safely
+    category_name = "None"
+    try:
+        if product.category:
+            category_name = product.category.name
+    except Exception:
+        # If there's an error accessing the category, just use None
+        category_name = "None"
+    
     # Format product details
     product_text = (
         f"📦 {hbold(product.title)}\n\n"
         f"Description: {product.short_description}\n"
         f"Price: {hcode(f'{product.price:.2f}')} coins\n"
         f"Available: {'✅' if product.available else '❌'}\n"
-        f"Category: {product.category.name if product.category else 'None'}\n"
+        f"Category: {category_name}\n"
         f"File ID: {product.file_id or 'Not set'}\n\n"
         f"What do you want to do with this product?"
     )
@@ -657,10 +666,37 @@ async def admin_back(callback: CallbackQuery, state: FSMContext):
     )
     await callback.answer()
 
+async def debug_db_status(message: Message):
+    """Debug handler to check DB status - only available to admins"""
+    if not await is_admin(message.from_user.id):
+        return
+    
+    # Get product and category counts
+    products = await get_all_products(available_only=False)
+    categories = await get_all_categories()
+    
+    debug_text = (
+        f"🔍 {hbold('Database Status')}\n\n"
+        f"Products count: {len(products)}\n"
+        f"Categories count: {len(categories)}\n\n"
+    )
+    
+    # Show some product details for debugging
+    if products:
+        debug_text += f"{hbold('First 5 products:')}\n"
+        for i, product in enumerate(products[:5], 1):
+            debug_text += (
+                f"{i}. ID: {product.id}, Title: {product.title}, "
+                f"Price: {product.price}, Available: {product.available}\n"
+            )
+    
+    await message.answer(debug_text)
+
 def register_admin_handlers(dp: Dispatcher):
     """Register admin handlers"""
     # Command handlers
     dp.message.register(cmd_admin, Command("admin"))
+    dp.message.register(debug_db_status, Command("debug_db"))
     
     # Admin panel navigation
     dp.callback_query.register(admin_manage_products, F.data == "admin_manage_products")

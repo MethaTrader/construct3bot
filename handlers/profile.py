@@ -15,14 +15,19 @@ async def cmd_profile(message: Message):
         'last_name': message.from_user.last_name
     })
     
+    # Get the latest balance directly using the balance method
+    balance = await get_user_balance(message.from_user.id)
+    
     # Format profile message
     profile_text = (
         f"👤 {hbold('Your Profile')}\n\n"
         f"Name: {user.first_name or 'Not set'} {user.last_name or ''}\n"
         f"Username: @{user.username or 'Not set'}\n"
-        f"Balance: {hbold(f'{user.balance:.2f}')} coins\n"
+        f"Balance: {hbold(f'{balance:.2f}')} coins\n"
         f"Account created: {user.created_at.strftime('%Y-%m-%d')}\n"
     )
+    
+    await message.answer(profile_text, reply_markup=get_profile_keyboard())
     
     await message.answer(profile_text, reply_markup=get_profile_keyboard())
 
