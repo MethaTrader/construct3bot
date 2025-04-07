@@ -1,0 +1,210 @@
+import logging
+from datetime import datetime
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.future import select
+from sqlalchemy import update
+
+from config import load_config
+from database.models import Base, User, Product, Category, Purchase
+
+# Load config for database URL
+config = load_config()
+DATABASE_URL = config.database_url
+
+# Create async engine
+engine = create_async_engine(DATABASE_URL, echo=True)
+
+# Create async session factory
+async_session = sessionmaker(
+    engine, expire_on_commit=False, class_=AsyncSession
+)
+
+# Logger
+logger = logging.getLogger(__name__)
+
+async def init_db():
+    """Initialize the database by creating all tables"""
+    async with engine.begin() as conn:
+        # Create all tables if they don't exist
+        await conn.run_sync(Base.metadata.create_all)
+    logger.info("Database tables created")
+
+async def get_session() -> AsyncSession:
+    """Get a new session"""
+    async with async_session() as session:
+        return session
+
+# User methods
+async def get_or_create_user(telegram_id: int, user_data: dict) -> User:
+    """Get user by telegram_id or create if not exists"""
+    async with async_session() as session:
+        # Check if user exists
+        query = select(User).where(User.telegram_id == telegram_id)
+        result = await session.execute(query)
+        user = result.scalars().first()
+        
+        # Create user if not exists
+        if not user:
+            user = User(
+                telegram_id=telegram_id,
+                username=user_data.get('username'),
+                first_name=user_data.get('first_name'),
+                last_name=user_data.get('last_name')
+            )
+            session.add(user)
+            await session.commit()
+            await session.refresh(user)
+            logger.info(f"Created new user: {user.telegram_id}")
+        else:
+            # Update last active
+            await update_user_activity(session, user.id)
+        
+        return user
+
+async def update_user_activity(session: AsyncSession, user_id: int):
+    """Update user's last activity timestamp"""
+    stmt = update(User).where(User.id == user_id).values(last_active=datetime.utcnow())
+    await session.execute(stmt)
+    await session.commit()
+
+async def get_user_balance(telegram_id: int) -> float:
+    """Get user balance by telegram_id"""
+    async with async_session() as session:
+        query = select(User.balance).where(User.telegram_id == telegram_id)
+        result = await session.execute(query)
+        balance = result.scalar_one_or_none()
+        return balance or 0.0
+
+async def update_user_balance(telegram_id: int, new_balance: float) -> bool:
+    """Update user balance"""
+    async with async_session() as session:
+        query = select(User).where(User.telegram_id == telegram_id)
+        result = await session.execute(query)
+        user = result.scalars().first()
+        
+        if user:
+            user.balance = new_balance
+            user.last_active = datetime.utcnow()
+            await session.commit()
+            return True
+        return False
+
+# Product methods
+async def get_all_products(available_only: bool = True):
+    """Get all products, optionally filtered by availability"""
+    async with async_session() as session:
+        if available_only:
+            query = select(Product).where(Product.available == True)
+        else:
+            query = select(Product)
+        
+        result = await session.execute(query)
+        return result.scalars().all()
+
+async def get_product(product_id: int):
+    """Get product by ID"""
+    async with async_session() as session:
+        query = select(Product).where(Product.id == product_id)
+        result = await session.execute(query)
+        return result.scalars().first()
+
+async def get_products_by_category(category_id: int, available_only: bool = True):
+    """Get products by category ID"""
+    async with async_session() as session:
+        if available_only:
+            query = select(Product).where(
+                Product.category_id == category_id,
+                Product.available == True
+            )
+        else:
+            query = select(Product).where(Product.category_id == category_id)
+        
+        result = await session.execute(query)
+        return result.scalars().all()
+
+# Category methods
+async def get_all_categories():
+    """Get all categories"""
+    async with async_session() as session:
+        query = select(Category)
+        result = await session.execute(query)
+        return result.scalars().all()
+
+async def get_category(category_id: int):
+    """Get category by ID"""
+    async with async_session() as session:
+        query = select(Category).where(Category.id == category_id)
+        result = await session.execute(query)
+        return result.scalars().first()
+
+# Purchase methods
+async def create_purchase(user_id: int, product_id: int, purchase_price: float):
+    """Create a purchase record"""
+    async with async_session() as session:
+        # First check if the product is available
+        product_query = select(Product).where(
+            Product.id == product_id,
+            Product.available == True
+        )
+        product_result = await session.execute(product_query)
+        product = product_result.scalars().first()
+        
+        if not product:
+            return None
+        
+        # Get the user
+        user_query = select(User).where(User.telegram_id == user_id)
+        user_result = await session.execute(user_query)
+        user = user_result.scalars().first()
+        
+        if not user:
+            return None
+        
+        # Check if balance is sufficient
+        if user.balance < purchase_price:
+            return None
+        
+        # Update balance
+        user.balance -= purchase_price
+        
+        # Create purchase
+        purchase = Purchase(
+            user_id=user.id,
+            product_id=product_id,
+            purchase_price=purchase_price
+        )
+        
+        session.add(purchase)
+        await session.commit()
+        await session.refresh(purchase)
+        
+        return purchase
+
+async def get_user_purchases(telegram_id: int):
+    """Get all purchases for a user"""
+    async with async_session() as session:
+        # First get the user's ID
+        user_query = select(User.id).where(User.telegram_id == telegram_id)
+        user_result = await session.execute(user_query)
+        user_id = user_result.scalar_one_or_none()
+        
+        if not user_id:
+            return []
+        
+        # Get purchases with product details
+        query = select(Purchase, Product).join(Product).where(Purchase.user_id == user_id)
+        result = await session.execute(query)
+        
+        purchases = []
+        for purchase, product in result:
+            purchases.append({
+                "id": purchase.id,
+                "product_id": product.id,
+                "title": product.title,
+                "purchase_date": purchase.purchase_date,
+                "purchase_price": purchase.purchase_price,
+                "file_id": product.file_id
+            })
+        
+        return purchases
