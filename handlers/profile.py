@@ -28,8 +28,6 @@ async def cmd_profile(message: Message):
     )
     
     await message.answer(profile_text, reply_markup=get_profile_keyboard())
-    
-    await message.answer(profile_text, reply_markup=get_profile_keyboard())
 
 async def show_purchases(message: Message):
     """Show user's purchases"""
@@ -39,7 +37,7 @@ async def show_purchases(message: Message):
     if not purchases:
         await message.answer(
             "You haven't made any purchases yet. Check our catalog!",
-            reply_markup=get_main_keyboard()
+            reply_markup=get_main_keyboard(message.from_user.id)
         )
         return
     
@@ -53,7 +51,7 @@ async def show_purchases(message: Message):
             f"   Date: {purchase['purchase_date'].strftime('%Y-%m-%d %H:%M')}\n\n"
         )
     
-    await message.answer(purchases_text, reply_markup=get_main_keyboard())
+    await message.answer(purchases_text, reply_markup=get_main_keyboard(message.from_user.id))
 
 async def show_balance(message: Message):
     """Show user's balance"""
@@ -66,7 +64,7 @@ async def show_balance(message: Message):
         f"You can use your balance to purchase products from our catalog."
     )
     
-    await message.answer(balance_text, reply_markup=get_main_keyboard())
+    await message.answer(balance_text, reply_markup=get_main_keyboard(message.from_user.id))
 
 def register_profile_handlers(dp: Dispatcher):
     """Register profile handlers"""

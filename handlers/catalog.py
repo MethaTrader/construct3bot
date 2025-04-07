@@ -97,11 +97,36 @@ async def show_product_details(callback: CallbackQuery):
         f"Price: {hcode(f'{product.price:.2f}')} coins"
     )
     
-    # Show product details with buy button
-    await callback.message.answer(
-        product_text,
-        reply_markup=get_product_details_keyboard(product.id)
-    )
+    # If product has a preview image, show it with the details
+    if product.preview_image_id:
+        try:
+            # Try to send as photo first
+            await callback.message.answer_photo(
+                photo=product.preview_image_id,
+                caption=product_text,
+                reply_markup=get_product_details_keyboard(product.id)
+            )
+        except Exception:
+            # If that fails, try sending as document (for GIFs)
+            try:
+                await callback.message.answer_document(
+                    document=product.preview_image_id,
+                    caption=product_text,
+                    reply_markup=get_product_details_keyboard(product.id)
+                )
+            except Exception:
+                # If both fail, just send text
+                await callback.message.answer(
+                    product_text,
+                    reply_markup=get_product_details_keyboard(product.id)
+                )
+    else:
+        # No preview image, just send text
+        await callback.message.answer(
+            product_text,
+            reply_markup=get_product_details_keyboard(product.id)
+        )
+    
     await callback.answer()
 
 async def back_to_products(callback: CallbackQuery):

@@ -6,6 +6,7 @@ class ProductState(StatesGroup):
     description = State()
     price = State()
     category = State()
+    preview_image = State()
     file = State()
     available = State()
 

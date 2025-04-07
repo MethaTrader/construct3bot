@@ -102,14 +102,41 @@ async def admin_product_actions(callback: CallbackQuery):
         f"Price: {hcode(f'{product.price:.2f}')} coins\n"
         f"Available: {'✅' if product.available else '❌'}\n"
         f"Category: {category_name}\n"
-        f"File ID: {product.file_id or 'Not set'}\n\n"
+        f"File ID: {product.file_id or 'Not set'}\n"
+        f"Preview Image: {'Set' if product.preview_image_id else 'Not set'}\n\n"
         f"What do you want to do with this product?"
     )
     
-    await callback.message.answer(
-        product_text,
-        reply_markup=get_admin_product_actions_keyboard(product_id)
-    )
+    # If product has a preview image, show it with the details
+    if product.preview_image_id:
+        try:
+            # Try to send as photo first
+            await callback.message.answer_photo(
+                photo=product.preview_image_id,
+                caption=product_text,
+                reply_markup=get_admin_product_actions_keyboard(product_id)
+            )
+        except Exception:
+            # If that fails, try sending as document (for GIFs)
+            try:
+                await callback.message.answer_document(
+                    document=product.preview_image_id,
+                    caption=product_text,
+                    reply_markup=get_admin_product_actions_keyboard(product_id)
+                )
+            except Exception:
+                # If both fail, just send text
+                await callback.message.answer(
+                    product_text,
+                    reply_markup=get_admin_product_actions_keyboard(product_id)
+                )
+    else:
+        # No preview image, just send text
+        await callback.message.answer(
+            product_text,
+            reply_markup=get_admin_product_actions_keyboard(product_id)
+        )
+    
     await callback.answer()
 
 async def admin_add_product(callback: CallbackQuery, state: FSMContext):
@@ -212,13 +239,47 @@ async def admin_add_product_category(callback: CallbackQuery, state: FSMContext)
     # Save category to state
     await state.update_data(category_id=category_id)
     
+    # Move to preview image state
+    await state.set_state(ProductState.preview_image)
+    
+    await callback.message.answer(
+        "Now send me a preview image for this product (.JPG, .PNG, or .GIF) or type 'skip' to skip this step:"
+    )
+    await callback.answer()
+
+async def admin_add_product_preview_image(message: Message, state: FSMContext):
+    """Process product preview image upload"""
+    if not await is_admin(message.from_user.id):
+        await message.answer("Access denied")
+        await state.clear()
+        return
+    
+    preview_image_id = None
+    
+    # Check if message contains a photo or document
+    if message.photo:
+        # Get the largest photo (last in the array)
+        preview_image_id = message.photo[-1].file_id
+    elif message.document and message.document.mime_type in ['image/jpeg', 'image/png', 'image/gif']:
+        preview_image_id = message.document.file_id
+    elif message.text and message.text.lower() == 'skip':
+        preview_image_id = None
+    else:
+        await message.answer(
+            "Please send a photo in JPG, PNG, or GIF format, or type 'skip' to skip this step."
+        )
+        return
+    
+    # Save preview_image_id to state
+    await state.update_data(preview_image_id=preview_image_id)
+    
     # Move to next state
     await state.set_state(ProductState.file)
     
-    await callback.message.answer(
+    await message.answer(
         "Now send me the file for this product or type 'skip' to skip this step:"
     )
-    await callback.answer()
+
 
 async def admin_add_product_file(message: Message, state: FSMContext):
     """Process product file upload"""
@@ -408,6 +469,7 @@ async def admin_edit_product_price(message: Message, state: FSMContext):
         await state.update_data(category_id=product.category_id)
         await state.set_state(ProductState.file)
 
+# Update edit product flow to include preview image
 async def admin_edit_product_category(callback: CallbackQuery, state: FSMContext):
     """Process editing product category"""
     if not await is_admin(callback.from_user.id):
@@ -429,14 +491,72 @@ async def admin_edit_product_category(callback: CallbackQuery, state: FSMContext
         category_id = int(callback.data.split(':')[1])
         await state.update_data(category_id=category_id)
     
+    # Move to preview image state
+    await state.set_state(ProductState.preview_image)
+    
+    # If product has a preview image, show it
+    preview_message = "Send me a new preview image for this product (.JPG, .PNG, or .GIF) or type 'skip' to keep current:"
+    
+    if product.preview_image_id:
+        try:
+            await callback.message.answer_photo(
+                photo=product.preview_image_id,
+                caption="Current preview image.\n" + preview_message
+            )
+        except Exception:
+            # If showing photo fails, try as document (might be a GIF)
+            try:
+                await callback.message.answer_document(
+                    document=product.preview_image_id,
+                    caption="Current preview image.\n" + preview_message
+                )
+            except Exception:
+                await callback.message.answer(
+                    f"Current preview image ID: {product.preview_image_id}\n\n" + preview_message
+                )
+    else:
+        await callback.message.answer(
+            "No current preview image.\n" + preview_message
+        )
+    
+    await callback.answer()
+
+
+async def admin_edit_product_preview_image(message: Message, state: FSMContext):
+    """Process editing product preview image"""
+    if not await is_admin(message.from_user.id):
+        await message.answer("Access denied")
+        await state.clear()
+        return
+    
+    data = await state.get_data()
+    product_id = data.get('product_id')
+    
+    # Get current product
+    product = await get_product(product_id)
+    
+    if message.photo:
+        # Get the largest photo (last in the array)
+        preview_image_id = message.photo[-1].file_id
+        await state.update_data(preview_image_id=preview_image_id)
+    elif message.document and message.document.mime_type in ['image/jpeg', 'image/png', 'image/gif']:
+        preview_image_id = message.document.file_id
+        await state.update_data(preview_image_id=preview_image_id)
+    elif message.text and message.text.lower() == 'skip':
+        await state.update_data(preview_image_id=product.preview_image_id)
+    else:
+        await message.answer(
+            "Please send a photo in JPG, PNG, or GIF format, or type 'skip' to keep current."
+        )
+        return
+    
     # Move to next state
     await state.set_state(ProductState.file)
     
-    await callback.message.answer(
+    await message.answer(
         f"Current file ID: {product.file_id or 'Not set'}\n\n"
         f"Send me the new file for this product or type 'skip' to keep current:"
     )
-    await callback.answer()
 
 async def admin_edit_product_file(message: Message, state: FSMContext):
     """Process editing product file"""
@@ -709,6 +829,7 @@ def register_admin_handlers(dp: Dispatcher):
     dp.message.register(admin_add_product_description, ProductState.description)
     dp.message.register(admin_add_product_price, ProductState.price)
     dp.callback_query.register(admin_add_product_category, F.data.startswith("admin_category:"))
+    dp.message.register(admin_add_product_preview_image, ProductState.preview_image)
     dp.message.register(admin_add_product_file, ProductState.file)
     dp.message.register(admin_add_product_available, ProductState.available)
     
@@ -718,6 +839,7 @@ def register_admin_handlers(dp: Dispatcher):
     dp.message.register(admin_edit_product_description, ProductState.description)
     dp.message.register(admin_edit_product_price, ProductState.price)
     dp.callback_query.register(admin_edit_product_category, F.data.startswith("admin_category:"))
+    dp.message.register(admin_edit_product_preview_image, ProductState.preview_image)
     dp.message.register(admin_edit_product_file, ProductState.file)
     dp.message.register(admin_edit_product_available, ProductState.available)
     

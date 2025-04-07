@@ -42,7 +42,8 @@ class Product(Base):
     title = Column(String(200), nullable=False)
     short_description = Column(Text, nullable=True)
     price = Column(Float, nullable=False)
-    file_id = Column(String(200), nullable=True)  # Telegram file_id
+    file_id = Column(String(200), nullable=True)  # Telegram file_id for the product file
+    preview_image_id = Column(String(200), nullable=True)  # Telegram file_id for preview image
     available = Column(Boolean, default=True)
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

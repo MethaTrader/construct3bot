@@ -147,6 +147,7 @@ async def add_product(product_data: dict) -> Product:
             short_description=product_data.get('short_description'),
             price=product_data.get('price'),
             file_id=product_data.get('file_id'),
+            preview_image_id=product_data.get('preview_image_id'),
             available=product_data.get('available', True),
             category_id=product_data.get('category_id')
         )
@@ -155,6 +156,7 @@ async def add_product(product_data: dict) -> Product:
         await session.refresh(product)
         logger.info(f"Added new product: {product.title}")
         return product
+
 
 async def update_product(product_id: int, product_data: dict) -> bool:
     """Update a product"""
@@ -175,6 +177,8 @@ async def update_product(product_id: int, product_data: dict) -> bool:
             product.price = product_data['price']
         if 'file_id' in product_data:
             product.file_id = product_data['file_id']
+        if 'preview_image_id' in product_data:
+            product.preview_image_id = product_data['preview_image_id']
         if 'available' in product_data:
             product.available = product_data['available']
         if 'category_id' in product_data:
