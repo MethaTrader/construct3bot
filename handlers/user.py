@@ -4,10 +4,16 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.utils.markdown import hbold
 from datetime import datetime
 
+from config import load_config
 from database.methods import get_or_create_user, get_user_purchases
 from keyboards.keyboards import get_main_keyboard, get_profile_keyboard
 from handlers.catalog import cmd_catalog
 from handlers.profile import show_purchases, show_balance
+from handlers.admin import cmd_admin
+
+# Load config to get admin IDs
+config = load_config()
+ADMIN_IDS = config.admin_ids
 
 async def cmd_start(message: Message):
     """Handle /start command"""
@@ -31,8 +37,8 @@ async def cmd_start(message: Message):
         f"Use the menu below to get started!"
     )
     
-    # Send welcome message with main keyboard
-    await message.answer(welcome_text, reply_markup=get_main_keyboard())
+    # Send welcome message with main keyboard (including admin button if user is admin)
+    await message.answer(welcome_text, reply_markup=get_main_keyboard(message.from_user.id))
 
 async def cmd_help(message: Message):
     """Handle /help command"""
@@ -43,9 +49,17 @@ async def cmd_help(message: Message):
         f"/catalog - Browse our products\n"
         f"/profile - View your profile\n"
         f"/balance - Check your balance\n"
-        f"/purchases - View your purchases\n\n"
-        f"If you have any questions or issues, feel free to contact our support!"
+        f"/purchases - View your purchases\n"
     )
+    
+    # Add admin commands if user is admin
+    if message.from_user.id in ADMIN_IDS:
+        help_text += (
+            f"\n{hbold('Admin Commands')}:\n"
+            f"/admin - Access admin panel\n"
+        )
+    
+    help_text += "\nIf you have any questions or issues, feel free to contact our support!"
     
     await message.answer(help_text)
 
@@ -60,7 +74,7 @@ async def handle_inline_buttons(callback: CallbackQuery):
     if action == "back_to_menu":
         await callback.message.answer(
             "Main menu:", 
-            reply_markup=get_main_keyboard()
+            reply_markup=get_main_keyboard(callback.from_user.id)
         )
     elif action == "my_purchases":
         await show_purchases(callback.message)
@@ -73,11 +87,16 @@ async def handle_inline_buttons(callback: CallbackQuery):
     
     await callback.answer()
 
+async def handle_admin_button(message: Message):
+    """Handle the Admin Panel button"""
+    await cmd_admin(message)
+
 def register_user_handlers(dp: Dispatcher):
     """Register user handlers"""
     dp.message.register(cmd_start, Command("start"))
     dp.message.register(cmd_help, Command("help"))
     dp.message.register(cmd_purchases, Command("purchases"))
+    dp.message.register(handle_admin_button, F.text == "👑 Admin Panel")
     
     # Inline button handlers
     dp.callback_query.register(handle_inline_buttons, F.data.in_([

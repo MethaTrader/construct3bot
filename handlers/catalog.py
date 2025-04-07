@@ -14,7 +14,7 @@ async def cmd_catalog(message: Message):
     if not categories:
         await message.answer(
             "📚 Our catalog is currently empty. Please check back later!",
-            reply_markup=get_main_keyboard()
+            reply_markup=get_main_keyboard(message.from_user.id)
         )
         return
     
@@ -35,7 +35,7 @@ async def show_category(callback: CallbackQuery):
     if not products:
         await callback.message.answer(
             "No products found in this category.",
-            reply_markup=get_main_keyboard()
+            reply_markup=get_main_keyboard(callback.from_user.id)
         )
         await callback.answer()
         return
@@ -55,7 +55,7 @@ async def show_all_products(callback: CallbackQuery):
     if not products:
         await callback.message.answer(
             "No products available currently.",
-            reply_markup=get_main_keyboard()
+            reply_markup=get_main_keyboard(callback.from_user.id)
         )
         await callback.answer()
         return
@@ -93,6 +93,11 @@ async def show_product_details(callback: CallbackQuery):
     )
     await callback.answer()
 
+async def back_to_products(callback: CallbackQuery):
+    """Handle back to products button"""
+    # Go back to all products
+    await show_all_products(callback)
+
 def register_catalog_handlers(dp: Dispatcher):
     """Register catalog handlers"""
     dp.message.register(cmd_catalog, Command("catalog"))
@@ -100,3 +105,4 @@ def register_catalog_handlers(dp: Dispatcher):
     dp.callback_query.register(show_category, F.data.startswith("category:"))
     dp.callback_query.register(show_all_products, F.data == "all_products")
     dp.callback_query.register(show_product_details, F.data.startswith("product:"))
+    dp.callback_query.register(back_to_products, F.data == "back_to_products")

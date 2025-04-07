@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.future import select
-from sqlalchemy import update
+from sqlalchemy import update, delete
 
 from config import load_config
 from database.models import Base, User, Product, Category, Purchase
@@ -90,6 +90,13 @@ async def update_user_balance(telegram_id: int, new_balance: float) -> bool:
             return True
         return False
 
+async def get_user_by_username(username: str) -> User:
+    """Get user by username"""
+    async with async_session() as session:
+        query = select(User).where(User.username == username)
+        result = await session.execute(query)
+        return result.scalars().first()
+
 # Product methods
 async def get_all_products(available_only: bool = True):
     """Get all products, optionally filtered by availability"""
@@ -123,6 +130,71 @@ async def get_products_by_category(category_id: int, available_only: bool = True
         result = await session.execute(query)
         return result.scalars().all()
 
+async def add_product(product_data: dict) -> Product:
+    """Add a new product"""
+    async with async_session() as session:
+        product = Product(
+            title=product_data.get('title'),
+            short_description=product_data.get('short_description'),
+            price=product_data.get('price'),
+            file_id=product_data.get('file_id'),
+            available=product_data.get('available', True),
+            category_id=product_data.get('category_id')
+        )
+        session.add(product)
+        await session.commit()
+        await session.refresh(product)
+        logger.info(f"Added new product: {product.title}")
+        return product
+
+async def update_product(product_id: int, product_data: dict) -> bool:
+    """Update a product"""
+    async with async_session() as session:
+        query = select(Product).where(Product.id == product_id)
+        result = await session.execute(query)
+        product = result.scalars().first()
+        
+        if not product:
+            return False
+        
+        # Update product attributes
+        if 'title' in product_data:
+            product.title = product_data['title']
+        if 'short_description' in product_data:
+            product.short_description = product_data['short_description']
+        if 'price' in product_data:
+            product.price = product_data['price']
+        if 'file_id' in product_data:
+            product.file_id = product_data['file_id']
+        if 'available' in product_data:
+            product.available = product_data['available']
+        if 'category_id' in product_data:
+            product.category_id = product_data['category_id']
+        
+        await session.commit()
+        logger.info(f"Updated product: {product.title}")
+        return True
+
+async def delete_product(product_id: int) -> bool:
+    """Delete a product"""
+    async with async_session() as session:
+        query = select(Product).where(Product.id == product_id)
+        result = await session.execute(query)
+        product = result.scalars().first()
+        
+        if not product:
+            return False
+        
+        # Log product name before deleting
+        product_name = product.title
+        
+        # Delete the product
+        await session.delete(product)
+        await session.commit()
+        
+        logger.info(f"Deleted product: {product_name}")
+        return True
+
 # Category methods
 async def get_all_categories():
     """Get all categories"""
@@ -137,6 +209,16 @@ async def get_category(category_id: int):
         query = select(Category).where(Category.id == category_id)
         result = await session.execute(query)
         return result.scalars().first()
+
+async def add_category(name: str) -> Category:
+    """Add a new category"""
+    async with async_session() as session:
+        category = Category(name=name)
+        session.add(category)
+        await session.commit()
+        await session.refresh(category)
+        logger.info(f"Added new category: {category.name}")
+        return category
 
 # Purchase methods
 async def create_purchase(user_id: int, product_id: int, purchase_price: float):
