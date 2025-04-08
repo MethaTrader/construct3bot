@@ -2,9 +2,19 @@ from aiogram import Dispatcher, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 from aiogram.utils.markdown import hbold, hcode
+import math
 
 from database.methods import get_all_categories, get_products_by_category, get_all_products, get_product
-from keyboards.keyboards import get_categories_keyboard, get_products_keyboard, get_product_details_keyboard, get_main_keyboard
+from keyboards.keyboards import (
+    get_categories_keyboard, 
+    get_products_keyboard, 
+    get_product_details_keyboard, 
+    get_main_keyboard,
+    get_paginated_products_keyboard
+)
+
+# Set the number of products per page
+PRODUCTS_PER_PAGE = 3
 
 async def cmd_catalog(message: Message):
     """Handle /catalog command"""
@@ -25,7 +35,7 @@ async def cmd_catalog(message: Message):
     if not categories:
         await message.answer(
             "📚 We have some products available:",
-            reply_markup=get_products_keyboard(products)
+            reply_markup=get_paginated_products_keyboard(products, 0, PRODUCTS_PER_PAGE)
         )
         return
     
@@ -51,10 +61,10 @@ async def show_category(callback: CallbackQuery):
         await callback.answer()
         return
     
-    # Show products keyboard
+    # Show products keyboard with pagination
     await callback.message.answer(
         "🛍 Available products:",
-        reply_markup=get_products_keyboard(products)
+        reply_markup=get_paginated_products_keyboard(products, 0, PRODUCTS_PER_PAGE)
     )
     await callback.answer()
 
@@ -71,10 +81,41 @@ async def show_all_products(callback: CallbackQuery):
         await callback.answer()
         return
     
-    # Show products keyboard
+    # Show products keyboard with pagination
     await callback.message.answer(
         "🛍 All available products:",
-        reply_markup=get_products_keyboard(products)
+        reply_markup=get_paginated_products_keyboard(products, 0, PRODUCTS_PER_PAGE)
+    )
+    await callback.answer()
+
+async def paginate_products(callback: CallbackQuery):
+    """Handle pagination of products"""
+    # Parse the callback data (pagination:category_id:page)
+    # If category_id is 0, it means "all products"
+    parts = callback.data.split(':')
+    category_id = int(parts[1])
+    page = int(parts[2])
+    
+    # Get products based on category_id
+    if category_id == 0:
+        products = await get_all_products()
+        title = "🛍 All available products:"
+    else:
+        products = await get_products_by_category(category_id)
+        title = "🛍 Category products:"
+    
+    if not products:
+        await callback.message.answer(
+            "No products available.",
+            reply_markup=get_main_keyboard(callback.from_user.id)
+        )
+        await callback.answer()
+        return
+    
+    # Show products with updated pagination
+    await callback.message.edit_text(
+        title,
+        reply_markup=get_paginated_products_keyboard(products, page, PRODUCTS_PER_PAGE)
     )
     await callback.answer()
 
@@ -140,5 +181,6 @@ def register_catalog_handlers(dp: Dispatcher):
     dp.message.register(cmd_catalog, F.text == "📚 Catalog")
     dp.callback_query.register(show_category, F.data.startswith("category:"))
     dp.callback_query.register(show_all_products, F.data == "all_products")
+    dp.callback_query.register(paginate_products, F.data.startswith("pagination:"))
     dp.callback_query.register(show_product_details, F.data.startswith("product:"))
     dp.callback_query.register(back_to_products, F.data == "back_to_products")

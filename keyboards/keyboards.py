@@ -1,4 +1,5 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+import math
 from config import load_config
 
 # Load config to get admin IDs
@@ -41,6 +42,9 @@ def get_admin_keyboard() -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(text="💰 Add Balance to User", callback_data="admin_add_balance")
+            ],
+            [
+                InlineKeyboardButton(text="📊 Statistics", callback_data="admin_statistics")
             ],
             [
                 InlineKeyboardButton(text="↩️ Back to Main Menu", callback_data="back_to_menu")
@@ -202,6 +206,65 @@ def get_products_keyboard(products) -> InlineKeyboardMarkup:
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
+def get_paginated_products_keyboard(products, current_page, per_page) -> InlineKeyboardMarkup:
+    """Get products keyboard with pagination"""
+    buttons = []
+    
+    # Calculate start and end indices for the current page
+    start_idx = current_page * per_page
+    end_idx = min(start_idx + per_page, len(products))
+    
+    # Get total number of pages
+    total_pages = math.ceil(len(products) / per_page)
+    
+    # Add product buttons for the current page
+    for product in products[start_idx:end_idx]:
+        buttons.append([
+            InlineKeyboardButton(
+                text=f"{product.title} - {product.price:.2f} coins", 
+                callback_data=f"product:{product.id}"
+            )
+        ])
+    
+    # Add pagination buttons
+    pagination_buttons = []
+    
+    # Add "Previous" button if not on the first page
+    if current_page > 0:
+        pagination_buttons.append(
+            InlineKeyboardButton(
+                text="◀️ Previous", 
+                callback_data=f"pagination:0:{current_page - 1}"
+            )
+        )
+    
+    # Add page indicator
+    pagination_buttons.append(
+        InlineKeyboardButton(
+            text=f"📄 {current_page + 1}/{total_pages}", 
+            callback_data="none"  # This button does nothing when clicked
+        )
+    )
+    
+    # Add "Next" button if not on the last page
+    if current_page < total_pages - 1:
+        pagination_buttons.append(
+            InlineKeyboardButton(
+                text="Next ▶️", 
+                callback_data=f"pagination:0:{current_page + 1}"
+            )
+        )
+    
+    if pagination_buttons:
+        buttons.append(pagination_buttons)
+    
+    # Add navigation buttons
+    buttons.append([
+        InlineKeyboardButton(text="Back to Categories", callback_data="back_to_categories")
+    ])
+    
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
 def get_product_details_keyboard(product_id) -> InlineKeyboardMarkup:
     """Get product details keyboard with buy button"""
     keyboard = InlineKeyboardMarkup(
@@ -236,6 +299,128 @@ def get_back_keyboard() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(text="↩️ Back", callback_data="admin_back")
+            ]
+        ]
+    )
+    return keyboard
+
+def get_balance_topup_keyboard() -> InlineKeyboardMarkup:
+    """Get keyboard with balance top-up options"""
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="500 coins (~$25)",
+                    callback_data="topup:500"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="1000 coins (~$50)",
+                    callback_data="topup:1000"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="3000 coins (~$150)",
+                    callback_data="topup:3000"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="10000 coins (~$500)",
+                    callback_data="topup:10000"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="↩️ Back",
+                    callback_data="show_balance"
+                )
+            ]
+        ]
+    )
+    return keyboard
+
+def get_payment_methods_keyboard() -> InlineKeyboardMarkup:
+    """Get keyboard with payment methods"""
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="💎 Cryptomus",
+                    callback_data="payment_method:cryptomus"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="💧 Wata",
+                    callback_data="payment_method:wata"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="💵 Payeer",
+                    callback_data="payment_method:payeer"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="💲 B2Pay",
+                    callback_data="payment_method:b2pay"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="❌ Cancel",
+                    callback_data="cancel_payment"
+                )
+            ]
+        ]
+    )
+    return keyboard
+
+def get_payment_confirmation_keyboard() -> InlineKeyboardMarkup:
+    """Get payment confirmation keyboard"""
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="💳 Pay Now",
+                    callback_data="confirm_payment"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="❌ Cancel",
+                    callback_data="cancel_payment"
+                )
+            ]
+        ]
+    )
+    return keyboard
+
+def get_balance_keyboard() -> InlineKeyboardMarkup:
+    """Get balance page keyboard with top-up option"""
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="💳 Top Up Balance",
+                    callback_data="topup_balance"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="📚 Go to Catalog",
+                    callback_data="open_catalog"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="↩️ Back to Main Menu",
+                    callback_data="back_to_menu"
+                )
             ]
         ]
     )

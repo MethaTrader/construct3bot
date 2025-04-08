@@ -14,3 +14,9 @@ class AddBalanceState(StatesGroup):
     """States for adding balance to users"""
     username = State()
     amount = State()
+
+class PaymentState(StatesGroup):
+    """States for payment process"""
+    select_amount = State()
+    select_method = State()
+    confirm = State()

@@ -4,7 +4,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.utils.markdown import hbold, hcode
 
 from database.methods import get_or_create_user, get_user_balance, get_user_purchases
-from keyboards.keyboards import get_profile_keyboard, get_main_keyboard
+from keyboards.keyboards import get_profile_keyboard, get_main_keyboard, get_balance_keyboard
 
 async def cmd_profile(message: Message):
     """Handle /profile command"""
@@ -61,10 +61,11 @@ async def show_balance(message: Message):
     balance_text = (
         f"💰 {hbold('Your Balance')}\n\n"
         f"Current balance: {hbold(f'{balance:.2f}')} coins\n\n"
-        f"You can use your balance to purchase products from our catalog."
+        f"You can use your balance to purchase products from our catalog or top up to add more coins."
     )
     
-    await message.answer(balance_text, reply_markup=get_main_keyboard(message.from_user.id))
+    # Make sure we're using the correct keyboard with the top-up button
+    await message.answer(balance_text, reply_markup=get_balance_keyboard())
 
 def register_profile_handlers(dp: Dispatcher):
     """Register profile handlers"""

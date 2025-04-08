@@ -303,3 +303,54 @@ async def get_user_purchases(telegram_id: int):
             })
         
         return purchases
+
+async def get_total_users_count() -> int:
+    """Get total number of users in the database"""
+    async with async_session() as session:
+        from sqlalchemy import func
+        query = select(func.count()).select_from(User)
+        result = await session.execute(query)
+        return result.scalar() or 0
+
+async def get_new_users_count(since_date: datetime) -> int:
+    """Get number of new users since a given date"""
+    async with async_session() as session:
+        from sqlalchemy import func
+        query = select(func.count()).select_from(User).where(User.created_at >= since_date)
+        result = await session.execute(query)
+        return result.scalar() or 0
+
+async def get_active_users_count(since_date: datetime) -> int:
+    """Get number of active users since a given date"""
+    async with async_session() as session:
+        from sqlalchemy import func
+        query = select(func.count()).select_from(User).where(User.last_active >= since_date)
+        result = await session.execute(query)
+        return result.scalar() or 0
+
+async def get_total_purchases_count() -> int:
+    """Get total number of purchases"""
+    async with async_session() as session:
+        from sqlalchemy import func
+        query = select(func.count()).select_from(Purchase)
+        result = await session.execute(query)
+        return result.scalar() or 0
+
+async def get_recent_purchases_data(since_date: datetime) -> list:
+    """Get data about purchases since a given date"""
+    async with async_session() as session:
+        query = select(Purchase).where(Purchase.purchase_date >= since_date)
+        result = await session.execute(query)
+        purchases = result.scalars().all()
+        
+        purchase_data = []
+        for purchase in purchases:
+            purchase_data.append({
+                "id": purchase.id,
+                "user_id": purchase.user_id,
+                "product_id": purchase.product_id,
+                "purchase_date": purchase.purchase_date,
+                "purchase_price": purchase.purchase_price
+            })
+        
+        return purchase_data

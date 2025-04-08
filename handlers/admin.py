@@ -220,11 +220,12 @@ async def admin_add_product_price(message: Message, state: FSMContext):
             reply_markup=get_admin_categories_keyboard(categories)
         )
     else:
+        # No categories, proceed directly to preview image
+        await state.set_state(ProductState.preview_image)
         await message.answer(
-            "No categories found. You can create categories later. "
-            "Now send me the file for this product or type 'skip' to skip this step:"
+            "No categories found. You can create categories later.\n\n"
+            "Now send me a preview image for this product (.JPG, .PNG, or .GIF) or type 'skip' to skip this step:"
         )
-        await state.set_state(ProductState.file)
 
 async def admin_add_product_category(callback: CallbackQuery, state: FSMContext):
     """Process product category selection"""
@@ -279,7 +280,6 @@ async def admin_add_product_preview_image(message: Message, state: FSMContext):
     await message.answer(
         "Now send me the file for this product or type 'skip' to skip this step:"
     )
-
 
 async def admin_add_product_file(message: Message, state: FSMContext):
     """Process product file upload"""
@@ -463,13 +463,12 @@ async def admin_edit_product_price(message: Message, state: FSMContext):
         )
     else:
         await message.answer(
-            "No categories found. Keeping current category. "
-            "Now send me the new file for this product or type 'skip' to keep current:"
+            "No categories found. Keeping current category.\n\n"
+            "Send me a new preview image for this product (.JPG, .PNG, or .GIF) or type 'skip' to keep current:"
         )
         await state.update_data(category_id=product.category_id)
-        await state.set_state(ProductState.file)
+        await state.set_state(ProductState.preview_image)
 
-# Update edit product flow to include preview image
 async def admin_edit_product_category(callback: CallbackQuery, state: FSMContext):
     """Process editing product category"""
     if not await is_admin(callback.from_user.id):
@@ -520,7 +519,6 @@ async def admin_edit_product_category(callback: CallbackQuery, state: FSMContext
         )
     
     await callback.answer()
-
 
 async def admin_edit_product_preview_image(message: Message, state: FSMContext):
     """Process editing product preview image"""
