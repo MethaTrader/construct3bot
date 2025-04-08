@@ -55,7 +55,7 @@ async def cmd_help(message: Message):
     # Add admin commands if user is admin
     if message.from_user.id in ADMIN_IDS:
         help_text += (
-            f"\n{hbold('Admin Commands')}:\n"
+            f"\n{hbold('✅ Admin Commands')}:\n"
             f"/admin - Access admin panel\n"
         )
     
