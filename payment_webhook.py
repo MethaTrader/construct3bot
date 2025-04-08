@@ -4,23 +4,17 @@ import os
 import sqlite3
 import jwt
 from datetime import datetime
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    filename='webhook.log'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
-# Configuration
+# Configuration from environment variables
 DATABASE_URL = os.getenv('DATABASE_URL', 'data/database.sqlite3')
-SECRET_KEY = os.getenv('CRYPTOCLOUD_SECRET_KEY', '')  # Get from CryptoCloud project settings
-PORT = int(os.getenv('WEBHOOK_PORT', 5000))
+SECRET_KEY = os.getenv('CRYPTOCLOUD_SECRET_KEY', '')
 
 app = Flask(__name__)
 
@@ -128,5 +122,5 @@ if __name__ == '__main__':
     os.makedirs(os.path.dirname(DATABASE_URL), exist_ok=True)
     
     # Start the Flask app
-    print(f"Starting webhook server on port {PORT}")
-    app.run(host='0.0.0.0', port=PORT)
+    port = int(os.getenv('WEBHOOK_PORT', 5000))
+    app.run(host='0.0.0.0', port=port)

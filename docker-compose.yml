@@ -9,6 +9,21 @@ services:
       - construct3store-data:/app/data
     env_file:
       - .env
+    command: python bot.py
+  
+  webhook:
+    build: .
+    container_name: construct3store-webhook
+    restart: always
+    volumes:
+      - construct3store-data:/app/data
+    env_file:
+      - .env
+    ports:
+      - "5000:5000"
+    command: python payment_webhook.py
+    environment:
+      - WEBHOOK_PORT=5000
 
 volumes:
   construct3store-data:
