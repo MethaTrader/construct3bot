@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  construct3store-bot:
+  bot:
     build: .
     container_name: construct3store-bot
     restart: always
