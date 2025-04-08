@@ -1,0 +1,39 @@
+name: Deploy Telegram Bot
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Create .env file
+        run: |
+          echo "BOT_TOKEN=${{ secrets.BOT_TOKEN }}" > .env
+          echo "DATABASE_URL=sqlite+aiosqlite:///data/database.sqlite3" >> .env
+          echo "ADMIN_IDS=${{ secrets.ADMIN_IDS }}" >> .env
+      
+      - name: Copy files to server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: ".,!venv,!__pycache__,!*.pyc,!.git"
+          target: "/opt/telegram-bot"
+          
+      - name: Deploy on server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/telegram-bot
+            docker-compose down
+            docker-compose build --no-cache
+            docker-compose up -d
+            docker system prune -af
