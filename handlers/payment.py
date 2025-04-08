@@ -183,11 +183,10 @@ async def process_payment(callback: CallbackQuery, state: FSMContext):
     
     # Generate payment link based on the selected method
     if payment_method == "cryptocloud":
-        # Pass coin_amount to include in the order_id
+        # Pass coin_amount as the third parameter
         payment_link = await generate_cryptocloud_invoice(price_usd, callback.from_user.id, coin_amount)
     elif payment_method in ["wata", "payeer", "b2pay"]:
         # Placeholder for other payment methods
-        # In a real implementation, you would integrate with these payment providers
         payment_link = f"https://example.com/placeholder-payment/{payment_method}/{price_usd}"
     
     if payment_link:
