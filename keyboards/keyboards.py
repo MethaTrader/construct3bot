@@ -348,8 +348,8 @@ def get_payment_methods_keyboard() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="💎 Cryptomus",
-                    callback_data="payment_method:cryptomus"
+                    text="💎 CryptoCloud",
+                    callback_data="payment_method:cryptocloud"
                 )
             ],
             [
@@ -374,6 +374,26 @@ def get_payment_methods_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(
                     text="❌ Cancel",
                     callback_data="cancel_payment"
+                )
+            ]
+        ]
+    )
+    return keyboard
+
+def get_payment_link_keyboard(payment_link: str) -> InlineKeyboardMarkup:
+    """Get keyboard with payment link button"""
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="💳 Pay Now",
+                    url=payment_link
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="↩️ Back to Main Menu",
+                    callback_data="back_to_menu"
                 )
             ]
         ]

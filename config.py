@@ -7,6 +7,8 @@ class Config:
     bot_token: str
     database_url: str
     admin_ids: list[int]
+    cryptocloud_shop_id: str
+    cryptocloud_api_key: str
 
 def load_config() -> Config:
     # Load .env file
@@ -30,8 +32,14 @@ def load_config() -> Config:
         if admin_id.strip().isdigit()
     ]
     
+    # Get CryptoCloud API credentials
+    cryptocloud_shop_id = os.getenv('CRYPTOCLOUD_SHOP_ID', '')
+    cryptocloud_api_key = os.getenv('CRYPTOCLOUD_API_KEY', '')
+    
     return Config(
         bot_token=bot_token,
         database_url=database_url,
-        admin_ids=admin_ids
+        admin_ids=admin_ids,
+        cryptocloud_shop_id=cryptocloud_shop_id,
+        cryptocloud_api_key=cryptocloud_api_key
     )
