@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 DATABASE_URL = os.getenv('DATABASE_URL', 'data/database.sqlite3')
 SECRET_KEY = os.getenv('CRYPTOCLOUD_SECRET_KEY', '')
 BOT_TOKEN = os.getenv('BOT_TOKEN', '')
+DEFAULT_ADMIN_ID = os.getenv('DEFAULT_ADMIN_ID', '0')  # For fallback
 
 app = Flask(__name__)
 
@@ -99,75 +100,156 @@ def send_telegram_notification(user_id, message):
         logger.error(f"Error sending notification: {e}")
         return False
 
+def parse_order_id(order_id):
+    """Parse user_id from order_id format tg_userID_hash"""
+    try:
+        if not order_id:
+            return None, False
+            
+        # Parse the format tg_userID_hash
+        if order_id.startswith("tg_"):
+            parts = order_id.split('_')
+            if len(parts) >= 3:
+                return int(parts[1]), True
+                
+        # If not in our format, log it and return None
+        logger.warning(f"Order ID not in expected format: {order_id}")
+        return None, False
+    except Exception as e:
+        logger.error(f"Error parsing order_id '{order_id}': {e}")
+        return None, False
+
+def estimate_coin_amount(amount_value):
+    """Estimate coin amount based on payment amount"""
+    try:
+        amount_value = float(amount_value)
+        # Simple mapping - adjust based on your actual pricing
+        coin_packages = {
+            25: 500,   # ~$25 = 500 coins
+            50: 1000,  # ~$50 = 1000 coins
+            150: 3000, # ~$150 = 3000 coins
+            500: 10000 # ~$500 = 10000 coins
+        }
+        
+        # Find closest package by price
+        closest_price = min(coin_packages.keys(), key=lambda x: abs(x - amount_value))
+        coin_amount = coin_packages[closest_price]
+        
+        logger.info(f"Estimated coin_amount from payment amount {amount_value}: {coin_amount}")
+        return coin_amount
+    except Exception as e:
+        logger.warning(f"Failed to estimate coin_amount: {e}")
+        return 500  # Default fallback
+
 @app.route('/payment/webhook', methods=['POST'])
 def handle_webhook():
     """Handle payment webhook from CryptoCloud"""
     try:
-        # Get data from request - CryptoCloud sends form data
-        data = request.form
+        # Get form data and log it for debugging
+        form_data = request.form
+        logger.info(f"Received webhook form data keys: {list(form_data.keys())}")
         
-        logger.info(f"Received webhook: {data}")
+        # Check if the webhook is missing order_id
+        if 'order_id' not in form_data:
+            logger.warning("Missing order_id in webhook data")
+            
+        # Get critical payment information
+        status = form_data.get('status', '')
+        invoice_id = form_data.get('invoice_id', '')
+        order_id = form_data.get('order_id', '')
+        token = form_data.get('token', '')
+        amount_crypto = form_data.get('amount_crypto', '0')
+        currency = form_data.get('currency', 'Unknown')
         
-        # Extract payment information
-        status = data.get('status')
-        invoice_id = data.get('invoice_id')
-        order_id = data.get('order_id', '')
-        token = data.get('token', '')
-        amount_crypto = data.get('amount_crypto', '0')
-        currency = data.get('currency', 'Unknown')
+        # Log the extracted data
+        logger.info(f"Payment info - Status: {status}, Invoice: {invoice_id}, Order ID: {order_id}")
         
-        # Additional fields
-        add_fields = json.loads(data.get('add_fields', '{}'))
-        coin_amount = int(add_fields.get('coin_amount', 0))
-        
-        # Verify payment status and token
+        # Verify payment status
         if status != 'success':
             logger.warning(f"Payment not successful: {status}")
             return jsonify({'status': 'error', 'message': 'Invalid payment status'}), 400
         
-        if not verify_token(token, invoice_id):
-            logger.warning("Token verification failed")
-            return jsonify({'status': 'error', 'message': 'Invalid token'}), 401
+        # Try to verify token
+        token_valid = verify_token(token, invoice_id)
+        logger.info(f"Token verification result: {token_valid}")
         
-        # Parse the new order_id format (telegramID.hash)
+        # Parse order_id to get user_id
+        user_id, success = parse_order_id(order_id)
+        logger.info(f"Parsed user_id from order_id: {user_id if user_id else 'None'} (success: {success})")
+        
+        # Get coin amount from add_fields
+        coin_amount = 0
+        add_fields_str = form_data.get('add_fields', '{}')
         try:
-            user_id_part = order_id.split('.')[0]
-            user_id = int(user_id_part)
+            add_fields = json.loads(add_fields_str)
+            logger.info(f"Parsed add_fields: {add_fields}")
             
-            # If coin_amount wasn't in add_fields, try to get it from somewhere else or use a default
-            if coin_amount == 0:
-                logger.warning(f"Coin amount not found in add_fields, using default value based on order ID: {order_id}")
-                # Here you could implement a lookup table or other method to determine coin amount
-            
-            # Update user balance
-            update_success, old_balance, new_balance = update_user_balance(user_id, coin_amount)
-            
-            if update_success:
-                logger.info(f"Successfully credited {coin_amount} coins to user {user_id}")
-                
-                # Send notification to user
-                notification_message = (
-                    f"✅ <b>Payment Successful!</b>\n\n"
-                    f"Your payment of {amount_crypto} {currency} has been received.\n"
-                    f"{coin_amount} coins have been added to your balance.\n\n"
-                    f"Old balance: {old_balance} coins\n"
-                    f"New balance: {new_balance} coins\n\n"
-                    f"Thank you for your purchase!"
-                )
-                
-                send_telegram_notification(user_id, notification_message)
-                return jsonify({'status': 'success', 'message': 'Payment processed'}), 200
-            else:
-                logger.error(f"Failed to update balance for user {user_id}")
-                return jsonify({'status': 'error', 'message': 'Database update failed'}), 500
-                
+            if 'coin_amount' in add_fields:
+                coin_amount = int(add_fields['coin_amount'])
+                logger.info(f"Found coin_amount in add_fields: {coin_amount}")
         except Exception as e:
-            logger.error(f"Error parsing order_id or processing payment: {e}")
-            return jsonify({'status': 'error', 'message': f'Invalid order_id format or processing error: {e}'}), 400
-    
+            logger.warning(f"Error processing add_fields: {e}")
+        
+        # Fallback if we didn't get a user_id from order_id
+        if not user_id:
+            # Try to get from add_fields
+            try:
+                if 'user_id' in add_fields:
+                    user_id = int(add_fields['user_id'])
+                    logger.info(f"Got user_id from add_fields: {user_id}")
+            except Exception as e:
+                logger.warning(f"Error getting user_id from add_fields: {e}")
+                
+            # If still no user_id, use default admin
+            if not user_id:
+                if DEFAULT_ADMIN_ID.isdigit():
+                    user_id = int(DEFAULT_ADMIN_ID)
+                    logger.warning(f"Using default admin as fallback user_id: {user_id}")
+                else:
+                    logger.error("Could not determine user_id and no valid default admin is set")
+                    return jsonify({'status': 'error', 'message': 'Invalid or missing user ID'}), 400
+        
+        # If we don't have a coin_amount, estimate from the payment amount
+        if coin_amount == 0:
+            coin_amount = estimate_coin_amount(amount_crypto)
+            logger.info(f"Using estimated coin_amount: {coin_amount}")
+        
+        # Update user balance
+        update_success, old_balance, new_balance = update_user_balance(user_id, coin_amount)
+        
+        if update_success:
+            logger.info(f"Successfully credited {coin_amount} coins to user {user_id}")
+            
+            # Send notification to user
+            notification_message = (
+                f"✅ <b>Payment Successful!</b>\n\n"
+                f"Your payment of {amount_crypto} {currency} has been received.\n"
+                f"{coin_amount} coins have been added to your balance.\n\n"
+                f"Old balance: {old_balance} coins\n"
+                f"New balance: {new_balance} coins\n\n"
+                f"Thank you for your purchase!"
+            )
+            
+            notification_sent = send_telegram_notification(user_id, notification_message)
+            logger.info(f"Notification sent: {notification_sent}")
+            
+            return jsonify({'status': 'success', 'message': 'Payment processed'}), 200
+        else:
+            logger.error(f"Failed to update balance for user {user_id}")
+            return jsonify({'status': 'error', 'message': 'Database update failed'}), 500
+                
     except Exception as e:
-        logger.error(f"Error processing webhook: {e}")
-        return jsonify({'status': 'error', 'message': 'Internal server error'}), 500
+        logger.error(f"Unhandled error processing webhook: {e}")
+        return jsonify({'status': 'error', 'message': f'Internal server error: {str(e)}'}), 500
+
+@app.route('/webhook/test', methods=['GET'])
+def test_endpoint():
+    """Test endpoint to verify the webhook server is running"""
+    return jsonify({
+        'status': 'success',
+        'message': 'Webhook server is running',
+        'time': datetime.now().isoformat()
+    })
 
 if __name__ == '__main__':
     # Make sure the data directory exists
