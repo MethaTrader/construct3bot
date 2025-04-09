@@ -11,13 +11,10 @@ def get_main_keyboard(user_id=None) -> ReplyKeyboardMarkup:
     buttons = [
         [
             KeyboardButton(text="📚 Catalog"),
-            KeyboardButton(text="🛒 Cart")
-        ],
-        [
             KeyboardButton(text="💰 Balance"),
-            KeyboardButton(text="👤 Profile")
         ],
-        [
+        [ 
+            KeyboardButton(text="👤 Profile")
             KeyboardButton(text="📞 Support")
         ]
     ]
