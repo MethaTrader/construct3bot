@@ -11,10 +11,14 @@ def get_main_keyboard(user_id=None) -> ReplyKeyboardMarkup:
     buttons = [
         [
             KeyboardButton(text="📚 Catalog"),
+            KeyboardButton(text="🛒 Cart")
         ],
         [
             KeyboardButton(text="💰 Balance"),
             KeyboardButton(text="👤 Profile")
+        ],
+        [
+            KeyboardButton(text="📞 Support")
         ]
     ]
     
@@ -309,25 +313,25 @@ def get_balance_topup_keyboard() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="500 coins (~$5)",
+                    text="500 coins (~$25)",
                     callback_data="topup:500"
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="1000 coins (~$10)",
+                    text="1000 coins (~$50)",
                     callback_data="topup:1000"
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="3000 coins (~$30)",
+                    text="3000 coins (~$150)",
                     callback_data="topup:3000"
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="10000 coins (~$100)",
+                    text="10000 coins (~$500)",
                     callback_data="topup:10000"
                 )
             ],
@@ -342,31 +346,13 @@ def get_balance_topup_keyboard() -> InlineKeyboardMarkup:
     return keyboard
 
 def get_payment_methods_keyboard() -> InlineKeyboardMarkup:
-    """Get keyboard with payment methods"""
+    """Get keyboard with payment methods - only CryptoCloud now"""
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
                     text="💎 CryptoCloud",
                     callback_data="payment_method:cryptocloud"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="💧 Wata",
-                    callback_data="payment_method:wata"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="💵 Payeer",
-                    callback_data="payment_method:payeer"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="💲 B2Pay",
-                    callback_data="payment_method:b2pay"
                 )
             ],
             [
@@ -433,6 +419,26 @@ def get_balance_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(
                     text="📚 Go to Catalog",
                     callback_data="open_catalog"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="↩️ Back to Main Menu",
+                    callback_data="back_to_menu"
+                )
+            ]
+        ]
+    )
+    return keyboard
+
+def get_support_keyboard(admin_contact: str) -> InlineKeyboardMarkup:
+    """Get support menu keyboard with contact button"""
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="📩 Contact Support",
+                    url=f"https://t.me/{admin_contact.lstrip('@')}"
                 )
             ],
             [

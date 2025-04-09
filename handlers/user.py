@@ -6,14 +6,15 @@ from datetime import datetime
 
 from config import load_config
 from database.methods import get_or_create_user, get_user_purchases
-from keyboards.keyboards import get_main_keyboard, get_profile_keyboard
+from keyboards.keyboards import get_main_keyboard, get_profile_keyboard, get_support_keyboard
 from handlers.catalog import cmd_catalog
 from handlers.profile import show_purchases, show_balance
 from handlers.admin import cmd_admin
 
-# Load config to get admin IDs
+# Load config to get admin IDs and contact
 config = load_config()
 ADMIN_IDS = config.admin_ids
+ADMIN_CONTACT = config.admin_contact
 
 async def cmd_start(message: Message):
     """Handle /start command"""
@@ -50,6 +51,7 @@ async def cmd_help(message: Message):
         f"/profile - View your profile\n"
         f"/balance - Check your balance\n"
         f"/purchases - View your purchases\n"
+        f"/support - Contact support\n"
     )
     
     # Add admin commands if user is admin
@@ -66,6 +68,29 @@ async def cmd_help(message: Message):
 async def cmd_purchases(message: Message):
     """Handle /purchases command"""
     await show_purchases(message)
+
+async def cmd_support(message: Message):
+    """Handle /support command and Support button"""
+    support_text = (
+        f"📞 {hbold('Support Center')}\n\n"
+        f"Need help? We're here for you! Contact us for:\n\n"
+        f"🤖 {hbold('Bot Questions')}\n"
+        f"Any questions about using the bot and its features\n\n"
+        f"💻 {hbold('Source Code Questions')}\n"
+        f"Technical questions about the bot's implementation\n\n"
+        f"🛒 {hbold('Purchase Source Code')}\n"
+        f"Interested in getting your own version of this bot\n\n"
+        f"💰 {hbold('Payment Issues')}\n"
+        f"Problems with payments or balance top-ups\n\n"
+        f"❓ {hbold('Other Questions')}\n"
+        f"Any other inquiries not covered above\n\n"
+        f"Contact our support team by clicking the button below:"
+    )
+    
+    await message.answer(
+        support_text,
+        reply_markup=get_support_keyboard(ADMIN_CONTACT)
+    )
 
 async def handle_inline_buttons(callback: CallbackQuery):
     """Handle common inline keyboard buttons"""
@@ -96,6 +121,8 @@ def register_user_handlers(dp: Dispatcher):
     dp.message.register(cmd_start, Command("start"))
     dp.message.register(cmd_help, Command("help"))
     dp.message.register(cmd_purchases, Command("purchases"))
+    dp.message.register(cmd_support, Command("support"))
+    dp.message.register(cmd_support, F.text == "📞 Support")
     dp.message.register(handle_admin_button, F.text == "👑 Admin Panel")
     
     # Inline button handlers

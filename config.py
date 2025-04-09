@@ -9,6 +9,7 @@ class Config:
     admin_ids: list[int]
     cryptocloud_shop_id: str
     cryptocloud_api_key: str
+    admin_contact: str  # New field for admin contact
 
 def load_config() -> Config:
     # Load .env file
@@ -36,10 +37,14 @@ def load_config() -> Config:
     cryptocloud_shop_id = os.getenv('CRYPTOCLOUD_SHOP_ID', '')
     cryptocloud_api_key = os.getenv('CRYPTOCLOUD_API_KEY', '')
     
+    # Get admin contact
+    admin_contact = os.getenv('ADMIN_CONTACT', '@admin')
+    
     return Config(
         bot_token=bot_token,
         database_url=database_url,
         admin_ids=admin_ids,
         cryptocloud_shop_id=cryptocloud_shop_id,
-        cryptocloud_api_key=cryptocloud_api_key
+        cryptocloud_api_key=cryptocloud_api_key,
+        admin_contact=admin_contact
     )
