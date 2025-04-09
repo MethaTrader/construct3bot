@@ -3,18 +3,25 @@ import logging
 import os
 import sqlite3
 import jwt
+import requests
+import json
 from datetime import datetime
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("webhook.log"),
+        logging.StreamHandler()
+    ]
 )
 logger = logging.getLogger(__name__)
 
 # Configuration from environment variables
 DATABASE_URL = os.getenv('DATABASE_URL', 'data/database.sqlite3')
 SECRET_KEY = os.getenv('CRYPTOCLOUD_SECRET_KEY', '')
+BOT_TOKEN = os.getenv('BOT_TOKEN', '')
 
 app = Flask(__name__)
 
@@ -57,15 +64,40 @@ def update_user_balance(user_id, amount):
             conn.commit()
             
             logger.info(f"Updated balance for user {user_id}: {current_balance} -> {new_balance}")
-            return True
+            return True, current_balance, new_balance
         else:
             logger.error(f"User {user_id} not found in database")
-            return False
+            return False, 0, 0
     except Exception as e:
         logger.error(f"Database error: {e}")
-        return False
+        return False, 0, 0
     finally:
         conn.close()
+
+def send_telegram_notification(user_id, message):
+    """Send a notification to the user via Telegram"""
+    if not BOT_TOKEN:
+        logger.error("BOT_TOKEN not set, cannot send notification")
+        return False
+        
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": user_id,
+        "text": message,
+        "parse_mode": "HTML"
+    }
+    
+    try:
+        response = requests.post(url, json=payload)
+        if response.status_code == 200:
+            logger.info(f"Notification sent to user {user_id}")
+            return True
+        else:
+            logger.error(f"Failed to send notification: {response.status_code} - {response.text}")
+            return False
+    except Exception as e:
+        logger.error(f"Error sending notification: {e}")
+        return False
 
 @app.route('/payment/webhook', methods=['POST'])
 def handle_webhook():
@@ -81,6 +113,12 @@ def handle_webhook():
         invoice_id = data.get('invoice_id')
         order_id = data.get('order_id', '')
         token = data.get('token', '')
+        amount_crypto = data.get('amount_crypto', '0')
+        currency = data.get('currency', 'Unknown')
+        
+        # Additional fields
+        add_fields = json.loads(data.get('add_fields', '{}'))
+        coin_amount = int(add_fields.get('coin_amount', 0))
         
         # Verify payment status and token
         if status != 'success':
@@ -91,31 +129,65 @@ def handle_webhook():
             logger.warning("Token verification failed")
             return jsonify({'status': 'error', 'message': 'Invalid token'}), 401
         
-        # Extract user_id and amount from order_id (format: user_USER_ID_AMOUNT)
-        if order_id.startswith('user_'):
-            try:
-                parts = order_id.split('_')
-                if len(parts) >= 3:
-                    user_id = int(parts[1])
-                    coins_amount = int(parts[2])
-                    
-                    # Update user balance
-                    if update_user_balance(user_id, coins_amount):
-                        logger.info(f"Successfully credited {coins_amount} coins to user {user_id}")
-                        return jsonify({'status': 'success', 'message': 'Payment processed'}), 200
-                    else:
-                        logger.error(f"Failed to update balance for user {user_id}")
-                        return jsonify({'status': 'error', 'message': 'Database update failed'}), 500
-            except Exception as e:
-                logger.error(f"Error parsing order_id: {e}")
-                return jsonify({'status': 'error', 'message': f'Invalid order_id format: {e}'}), 400
-        
-        logger.warning(f"Invalid order_id format: {order_id}")
-        return jsonify({'status': 'error', 'message': 'Invalid order_id format'}), 400
+        # Parse the new order_id format (telegramID.hash)
+        try:
+            user_id_part = order_id.split('.')[0]
+            user_id = int(user_id_part)
+            
+            # If coin_amount wasn't in add_fields, try to get it from somewhere else or use a default
+            if coin_amount == 0:
+                logger.warning(f"Coin amount not found in add_fields, using default value based on order ID: {order_id}")
+                # Here you could implement a lookup table or other method to determine coin amount
+            
+            # Update user balance
+            update_success, old_balance, new_balance = update_user_balance(user_id, coin_amount)
+            
+            if update_success:
+                logger.info(f"Successfully credited {coin_amount} coins to user {user_id}")
+                
+                # Send notification to user
+                notification_message = (
+                    f"✅ <b>Payment Successful!</b>\n\n"
+                    f"Your payment of {amount_crypto} {currency} has been received.\n"
+                    f"{coin_amount} coins have been added to your balance.\n\n"
+                    f"Old balance: {old_balance} coins\n"
+                    f"New balance: {new_balance} coins\n\n"
+                    f"Thank you for your purchase!"
+                )
+                
+                send_telegram_notification(user_id, notification_message)
+                return jsonify({'status': 'success', 'message': 'Payment processed'}), 200
+            else:
+                logger.error(f"Failed to update balance for user {user_id}")
+                return jsonify({'status': 'error', 'message': 'Database update failed'}), 500
+                
+        except Exception as e:
+            logger.error(f"Error parsing order_id or processing payment: {e}")
+            return jsonify({'status': 'error', 'message': f'Invalid order_id format or processing error: {e}'}), 400
     
     except Exception as e:
         logger.error(f"Error processing webhook: {e}")
         return jsonify({'status': 'error', 'message': 'Internal server error'}), 500
+
+async def check_payment_status(message: Message):
+    """Handle /check_payment command to check on recent payments"""
+    user_id = message.from_user.id
+    balance = await get_user_balance(user_id)
+    
+    # This is a simple implementation - in a real system, you might
+    # want to check the actual payment status from CryptoCloud API
+    
+    await message.answer(
+        f"💰 <b>Payment Status</b>\n\n"
+        f"Your current balance is: <b>{balance:.2f}</b> coins\n\n"
+        f"If you've recently made a payment, please wait a few minutes for it to be processed. "
+        f"Your balance will be updated automatically when the payment is confirmed.\n\n"
+        f"If you have any issues with your payment, please contact support.",
+        reply_markup=get_main_keyboard(user_id)
+    )
+
+# Add this to the register_payment_handlers function:
+# dp.message.register(check_payment_status, Command("check_payment"))
 
 if __name__ == '__main__':
     # Make sure the data directory exists
