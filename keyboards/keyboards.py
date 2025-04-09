@@ -14,7 +14,7 @@ def get_main_keyboard(user_id=None) -> ReplyKeyboardMarkup:
             KeyboardButton(text="💰 Balance"),
         ],
         [ 
-            KeyboardButton(text="👤 Profile")
+            KeyboardButton(text="👤 Profile"),
             KeyboardButton(text="📞 Support")
         ]
     ]
