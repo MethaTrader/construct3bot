@@ -15,6 +15,9 @@ jobs:
           echo "BOT_TOKEN=${{ secrets.BOT_TOKEN }}" > .env
           echo "DATABASE_URL=sqlite+aiosqlite:///data/database.sqlite3" >> .env
           echo "ADMIN_IDS=${{ secrets.ADMIN_IDS }}" >> .env
+          echo "CRYPTOCLOUD_SHOP_ID=${{ secrets.CRYPTOCLOUD_SHOP_ID }}" >> .env
+          echo "CRYPTOCLOUD_API_KEY=${{ secrets.CRYPTOCLOUD_API_KEY }}" >> .env
+          echo "CRYPTOCLOUD_SECRET_KEY=${{ secrets.CRYPTOCLOUD_SECRET_KEY }}" >> .env
       
       - name: Copy files to server
         uses: appleboy/scp-action@master
