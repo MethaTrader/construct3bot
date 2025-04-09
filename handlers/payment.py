@@ -1,14 +1,13 @@
 import logging
 import json
 import requests
+import random
+import string
 from aiogram import Dispatcher, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 from aiogram.utils.markdown import hbold, hcode
 from aiogram.fsm.context import FSMContext
-import uuid
-import random
-import string
 
 from config import load_config
 from database.methods import get_user_balance, update_user_balance
@@ -164,9 +163,9 @@ async def generate_cryptocloud_invoice(amount, user_id, coin_amount):
     data = {
         "amount": amount,
         "shop_id": config.cryptocloud_shop_id,
-        "order_id": order_id,
         "currency": "USD",
         "add_fields": {
+            "order_id": order_id,
             "email": f"user{user_id}@example.com",  # Placeholder email
             "coin_amount": str(coin_amount)  # Store coin amount as additional field
         }
@@ -199,7 +198,6 @@ async def process_payment(callback: CallbackQuery, state: FSMContext):
     
     # Generate payment link based on the selected method
     if payment_method == "cryptocloud":
-        # Fix: Include the coin_amount parameter
         payment_link = await generate_cryptocloud_invoice(price_usd, callback.from_user.id, coin_amount)
     elif payment_method in ["wata", "payeer", "b2pay"]:
         # Placeholder for other payment methods
@@ -212,7 +210,8 @@ async def process_payment(callback: CallbackQuery, state: FSMContext):
             f"Package: {hbold(f'{coin_amount}')} coins\n"
             f"Price: {hcode(f'${price_usd:.2f}')}\n"
             f"Payment method: {hbold(payment_data.get('payment_method_name'))}\n\n"
-            f"Click the button below to proceed to the payment page. After successful payment, the coins will be credited to your balance automatically."
+            f"Click the button below to proceed to the payment page. After successful payment, the coins will be credited to your balance automatically.\n\n"
+            f"You can check your payment status with /check_payment command."
         )
         
         await callback.message.answer(
@@ -234,6 +233,23 @@ async def process_payment(callback: CallbackQuery, state: FSMContext):
     # Clear state
     await state.clear()
     await callback.answer()
+
+async def check_payment_status(message: Message):
+    """Handle /check_payment command to check on recent payments"""
+    user_id = message.from_user.id
+    balance = await get_user_balance(user_id)
+    
+    # This is a simple implementation - in a real system, you might
+    # want to check the actual payment status from CryptoCloud API
+    
+    await message.answer(
+        f"💰 <b>Payment Status</b>\n\n"
+        f"Your current balance is: <b>{balance:.2f}</b> coins\n\n"
+        f"If you've recently made a payment, please wait a few minutes for it to be processed. "
+        f"Your balance will be updated automatically when the payment is confirmed.\n\n"
+        f"If you have any issues with your payment, please contact support.",
+        reply_markup=get_main_keyboard(user_id)
+    )
 
 async def cancel_payment(callback: CallbackQuery, state: FSMContext):
     """Cancel payment process"""

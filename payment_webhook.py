@@ -169,26 +169,6 @@ def handle_webhook():
         logger.error(f"Error processing webhook: {e}")
         return jsonify({'status': 'error', 'message': 'Internal server error'}), 500
 
-async def check_payment_status(message: Message):
-    """Handle /check_payment command to check on recent payments"""
-    user_id = message.from_user.id
-    balance = await get_user_balance(user_id)
-    
-    # This is a simple implementation - in a real system, you might
-    # want to check the actual payment status from CryptoCloud API
-    
-    await message.answer(
-        f"💰 <b>Payment Status</b>\n\n"
-        f"Your current balance is: <b>{balance:.2f}</b> coins\n\n"
-        f"If you've recently made a payment, please wait a few minutes for it to be processed. "
-        f"Your balance will be updated automatically when the payment is confirmed.\n\n"
-        f"If you have any issues with your payment, please contact support.",
-        reply_markup=get_main_keyboard(user_id)
-    )
-
-# Add this to the register_payment_handlers function:
-# dp.message.register(check_payment_status, Command("check_payment"))
-
 if __name__ == '__main__':
     # Make sure the data directory exists
     os.makedirs(os.path.dirname(DATABASE_URL), exist_ok=True)
