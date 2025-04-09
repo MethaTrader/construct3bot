@@ -7,7 +7,7 @@ from sqlalchemy import update, delete
 from sqlalchemy.pool import NullPool
 
 from config import load_config
-from database.models import Base, User, Product, Category, Purchase
+from database.models import Base, User, Product, Category, Purchase, Newsletter
 
 # Load config for database URL
 config = load_config()
@@ -476,3 +476,154 @@ async def get_recent_purchases_data(since_date: datetime) -> list:
     except Exception as e:
         logger.error(f"Error getting recent purchases data: {e}")
         return []
+
+async def create_newsletter(newsletter_data: dict) -> Newsletter:
+    """Create a new newsletter"""
+    try:
+        async with async_session() as session:
+            newsletter = Newsletter(
+                title=newsletter_data.get('title'),
+                message_text=newsletter_data.get('message_text'),
+                photo_id=newsletter_data.get('photo_id'),
+                file_id=newsletter_data.get('file_id'),
+                file_name=newsletter_data.get('file_name'),
+                button_text=newsletter_data.get('button_text'),
+                button_url=newsletter_data.get('button_url'),
+                status="draft"
+            )
+            session.add(newsletter)
+            await session.commit()
+            await session.refresh(newsletter)
+            logger.info(f"Created new newsletter: {newsletter.title}")
+            return newsletter
+    except Exception as e:
+        logger.error(f"Error creating newsletter: {e}")
+        return None
+
+async def get_all_newsletters():
+    """Get all newsletters ordered by created_at descending"""
+    try:
+        async with async_session() as session:
+            query = select(Newsletter).order_by(Newsletter.created_at.desc())
+            result = await session.execute(query)
+            return result.scalars().all()
+    except Exception as e:
+        logger.error(f"Error getting newsletters: {e}")
+        return []
+
+async def get_newsletter(newsletter_id: int):
+    """Get newsletter by ID"""
+    try:
+        async with async_session() as session:
+            query = select(Newsletter).where(Newsletter.id == newsletter_id)
+            result = await session.execute(query)
+            return result.scalars().first()
+    except Exception as e:
+        logger.error(f"Error getting newsletter: {e}")
+        return None
+
+async def update_newsletter(newsletter_id: int, newsletter_data: dict) -> bool:
+    """Update a newsletter"""
+    try:
+        async with async_session() as session:
+            query = select(Newsletter).where(Newsletter.id == newsletter_id)
+            result = await session.execute(query)
+            newsletter = result.scalars().first()
+            
+            if not newsletter:
+                return False
+            
+            # Update newsletter attributes
+            if 'title' in newsletter_data:
+                newsletter.title = newsletter_data['title']
+            if 'message_text' in newsletter_data:
+                newsletter.message_text = newsletter_data['message_text']
+            if 'photo_id' in newsletter_data:
+                newsletter.photo_id = newsletter_data['photo_id']
+            if 'file_id' in newsletter_data:
+                newsletter.file_id = newsletter_data['file_id']
+            if 'file_name' in newsletter_data:
+                newsletter.file_name = newsletter_data['file_name']
+            if 'button_text' in newsletter_data:
+                newsletter.button_text = newsletter_data['button_text']
+            if 'button_url' in newsletter_data:
+                newsletter.button_url = newsletter_data['button_url']
+            if 'status' in newsletter_data:
+                newsletter.status = newsletter_data['status']
+            if 'sent_at' in newsletter_data:
+                newsletter.sent_at = newsletter_data['sent_at']
+            if 'recipients_count' in newsletter_data:
+                newsletter.recipients_count = newsletter_data['recipients_count']
+            if 'success_count' in newsletter_data:
+                newsletter.success_count = newsletter_data['success_count']
+            if 'error_count' in newsletter_data:
+                newsletter.error_count = newsletter_data['error_count']
+            if 'send_time' in newsletter_data:
+                newsletter.send_time = newsletter_data['send_time']
+            
+            await session.commit()
+            logger.info(f"Updated newsletter: {newsletter.title}")
+            return True
+    except Exception as e:
+        logger.error(f"Error updating newsletter: {e}")
+        return False
+
+async def delete_newsletter(newsletter_id: int) -> bool:
+    """Delete a newsletter"""
+    try:
+        async with async_session() as session:
+            query = select(Newsletter).where(Newsletter.id == newsletter_id)
+            result = await session.execute(query)
+            newsletter = result.scalars().first()
+            
+            if not newsletter:
+                return False
+            
+            # Log newsletter name before deleting
+            newsletter_title = newsletter.title
+            
+            # Delete the newsletter
+            await session.delete(newsletter)
+            await session.commit()
+            
+            logger.info(f"Deleted newsletter: {newsletter_title}")
+            return True
+    except Exception as e:
+        logger.error(f"Error deleting newsletter: {e}")
+        return False
+
+async def get_all_users_telegram_ids() -> list:
+    """Get telegram IDs of all users for the newsletter"""
+    try:
+        async with async_session() as session:
+            query = select(User.telegram_id)
+            result = await session.execute(query)
+            return [telegram_id for telegram_id, in result.all()]
+    except Exception as e:
+        logger.error(f"Error getting user IDs: {e}")
+        return []
+
+async def mark_newsletter_as_sent(newsletter_id: int, stats: dict) -> bool:
+    """Mark a newsletter as sent with statistics"""
+    try:
+        async with async_session() as session:
+            query = select(Newsletter).where(Newsletter.id == newsletter_id)
+            result = await session.execute(query)
+            newsletter = result.scalars().first()
+            
+            if not newsletter:
+                return False
+            
+            newsletter.status = "sent"
+            newsletter.sent_at = datetime.utcnow()
+            newsletter.recipients_count = stats.get("recipients_count", 0)
+            newsletter.success_count = stats.get("success_count", 0)
+            newsletter.error_count = stats.get("error_count", 0)
+            newsletter.send_time = stats.get("send_time", 0.0)
+            
+            await session.commit()
+            logger.info(f"Marked newsletter as sent: {newsletter.title}")
+            return True
+    except Exception as e:
+        logger.error(f"Error marking newsletter as sent: {e}")
+        return False

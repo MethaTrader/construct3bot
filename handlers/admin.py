@@ -1,8 +1,12 @@
 from aiogram import Dispatcher, F
 from aiogram.filters import Command
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, FSInputFile
 from aiogram.utils.markdown import hbold, hcode
 from aiogram.fsm.context import FSMContext
+import os
+import shutil
+from datetime import datetime
+import logging
 
 from config import load_config
 from database.methods import (
@@ -13,7 +17,9 @@ from database.methods import (
     delete_product,
     get_all_categories,
     get_user_by_username,
-    update_user_balance
+    update_user_balance,
+    get_total_users_count,
+    get_total_purchases_count
 )
 from keyboards.keyboards import (
     get_admin_keyboard,
@@ -22,13 +28,18 @@ from keyboards.keyboards import (
     get_admin_categories_keyboard,
     get_back_keyboard,
     get_main_keyboard,
-    get_admin_confirm_delete_keyboard
+    get_admin_confirm_delete_keyboard,
+    get_backup_keyboard
 )
 from states.states import ProductState, AddBalanceState
+from utils.admin import is_admin
 
 # Load config to get admin IDs
 config = load_config()
 ADMIN_IDS = config.admin_ids
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 async def is_admin(user_id: int) -> bool:
     """Check if user is admin"""
@@ -810,6 +821,88 @@ async def debug_db_status(message: Message):
     
     await message.answer(debug_text)
 
+async def admin_backup_db(callback: CallbackQuery):
+    """Show database backup information and options"""
+    if not await is_admin(callback.from_user.id):
+        await callback.answer("Access denied", show_alert=True)
+        return
+    
+    # Get database statistics
+    total_users = await get_total_users_count()
+    products = await get_all_products(available_only=False)
+    categories = await get_all_categories()
+    total_purchases = await get_total_purchases_count()
+    
+    # Format database statistics message
+    db_stats = (
+        f"💾 {hbold('Database Backup')}\n\n"
+        f"Database statistics:\n"
+        f"• Users: {hcode(str(total_users))}\n"
+        f"• Products: {hcode(str(len(products)))}\n"
+        f"• Categories: {hcode(str(len(categories)))}\n"
+        f"• Purchases: {hcode(str(total_purchases))}\n\n"
+        f"Click the button below to create and download a backup of the current database."
+    )
+    
+    await callback.message.answer(
+        db_stats,
+        reply_markup=get_backup_keyboard()
+    )
+    await callback.answer()
+
+async def admin_download_backup(callback: CallbackQuery):
+    """Create and send database backup file"""
+    if not await is_admin(callback.from_user.id):
+        await callback.answer("Access denied", show_alert=True)
+        return
+    
+    await callback.answer("Creating backup, please wait...", show_alert=True)
+    
+    try:
+        # Get database path from config
+        config = load_config()
+        db_url = config.database_url
+        
+        # Extract the filename from the SQLite connection string
+        # Example: sqlite+aiosqlite:///data/database.sqlite3
+        db_path = db_url.split(':///')[-1]
+        
+        # Ensure backup directory exists
+        os.makedirs('backups', exist_ok=True)
+        
+        # Create backup filename with timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_filename = f"backup_{timestamp}.sqlite3"
+        backup_path = os.path.join('backups', backup_filename)
+        
+        # Copy the database file
+        shutil.copy2(db_path, backup_path)
+        
+        # Send file to admin
+        await callback.message.answer("Database backup created successfully! Sending file...")
+        
+        # Create a file object to send
+        file = FSInputFile(backup_path, filename=backup_filename)
+        
+        # Send the file
+        await callback.message.answer_document(
+            document=file,
+            caption=f"Database backup created on {timestamp}"
+        )
+        
+        # Success message
+        await callback.message.answer(
+            "✅ Backup completed and sent successfully!",
+            reply_markup=get_admin_keyboard()
+        )
+        
+    except Exception as e:
+        logger.error(f"Error creating database backup: {e}")
+        await callback.message.answer(
+            f"❌ Error creating backup: {str(e)}",
+            reply_markup=get_admin_keyboard()
+        )
+
 def register_admin_handlers(dp: Dispatcher):
     """Register admin handlers"""
     # Command handlers
@@ -849,3 +942,7 @@ def register_admin_handlers(dp: Dispatcher):
     dp.callback_query.register(admin_add_balance, F.data == "admin_add_balance")
     dp.message.register(admin_add_balance_username, AddBalanceState.username)
     dp.message.register(admin_add_balance_amount, AddBalanceState.amount)
+    
+    # Backup handlers
+    dp.callback_query.register(admin_backup_db, F.data == "admin_backup_db")
+    dp.callback_query.register(admin_download_backup, F.data == "admin_download_backup")

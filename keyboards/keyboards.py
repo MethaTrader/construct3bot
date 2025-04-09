@@ -31,7 +31,7 @@ def get_main_keyboard(user_id=None) -> ReplyKeyboardMarkup:
     return keyboard
 
 def get_admin_keyboard() -> InlineKeyboardMarkup:
-    """Get admin panel keyboard"""
+    """Get admin panel keyboard (Updated with Newsletter button)"""
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -45,6 +45,9 @@ def get_admin_keyboard() -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(text="📊 Statistics", callback_data="admin_statistics")
+            ],
+            [
+                InlineKeyboardButton(text="📨 Newsletter", callback_data="admin_newsletter")
             ],
             [
                 InlineKeyboardButton(text="↩️ Back to Main Menu", callback_data="back_to_menu")
@@ -447,3 +450,235 @@ def get_support_keyboard(admin_contact: str) -> InlineKeyboardMarkup:
         ]
     )
     return keyboard
+
+def get_backup_keyboard() -> InlineKeyboardMarkup:
+    """Get backup database keyboard"""
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="📥 Download Backup", callback_data="admin_download_backup")
+            ],
+            [
+                InlineKeyboardButton(text="↩️ Back to Admin Panel", callback_data="admin_back")
+            ]
+        ]
+    )
+    return keyboard
+
+def get_newsletter_main_keyboard() -> InlineKeyboardMarkup:
+    """Get newsletter main menu keyboard"""
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="📝 Create Newsletter", callback_data="create_newsletter")
+            ],
+            [
+                InlineKeyboardButton(text="📋 My Newsletters", callback_data="my_newsletters")
+            ],
+            [
+                InlineKeyboardButton(text="↩️ Back to Admin Panel", callback_data="admin_back")
+            ]
+        ]
+    )
+    return keyboard
+
+def get_newsletter_list_keyboard(newsletters, page=0, per_page=5) -> InlineKeyboardMarkup:
+    """Get keyboard with list of newsletters and pagination"""
+    buttons = []
+    
+    # Calculate start and end indices for the current page
+    start_idx = page * per_page
+    end_idx = min(start_idx + per_page, len(newsletters))
+    
+    # Get total number of pages
+    total_pages = math.ceil(len(newsletters) / per_page) if newsletters else 1
+    
+    # Add newsletter buttons for the current page
+    for newsletter in newsletters[start_idx:end_idx]:
+        # Show status emoji
+        status_emoji = "✅" if newsletter.status == "sent" else "📝"
+        
+        buttons.append([
+            InlineKeyboardButton(
+                text=f"{status_emoji} {newsletter.title}", 
+                callback_data=f"view_newsletter:{newsletter.id}"
+            )
+        ])
+    
+    # Add pagination buttons
+    pagination_buttons = []
+    
+    # Add "Previous" button if not on the first page
+    if page > 0:
+        pagination_buttons.append(
+            InlineKeyboardButton(
+                text="◀️ Previous", 
+                callback_data=f"newsletter_page:{page - 1}"
+            )
+        )
+    
+    # Add page indicator
+    pagination_buttons.append(
+        InlineKeyboardButton(
+            text=f"📄 {page + 1}/{total_pages}", 
+            callback_data="none"
+        )
+    )
+    
+    # Add "Next" button if not on the last page
+    if newsletters and page < total_pages - 1:
+        pagination_buttons.append(
+            InlineKeyboardButton(
+                text="Next ▶️", 
+                callback_data=f"newsletter_page:{page + 1}"
+            )
+        )
+    
+    if pagination_buttons:
+        buttons.append(pagination_buttons)
+    
+    # Add back button
+    buttons.append([
+        InlineKeyboardButton(text="↩️ Back", callback_data="admin_newsletter")
+    ])
+    
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def get_newsletter_detail_keyboard(newsletter_id: int, newsletter_status: str) -> InlineKeyboardMarkup:
+    """Get keyboard for newsletter details"""
+    buttons = []
+    
+    if newsletter_status == "draft":
+        buttons.append([
+            InlineKeyboardButton(text="✏️ Edit", callback_data=f"edit_newsletter:{newsletter_id}")
+        ])
+        buttons.append([
+            InlineKeyboardButton(text="🚀 Send Now", callback_data=f"send_newsletter:{newsletter_id}")
+        ])
+    
+    buttons.append([
+        InlineKeyboardButton(text="🗑 Delete", callback_data=f"delete_newsletter:{newsletter_id}")
+    ])
+    buttons.append([
+        InlineKeyboardButton(text="↩️ Back to List", callback_data="my_newsletters")
+    ])
+    
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def get_newsletter_creation_keyboard() -> InlineKeyboardMarkup:
+    """Get keyboard for newsletter creation process"""
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="↩️ Cancel", callback_data="cancel_newsletter")
+            ]
+        ]
+    )
+    return keyboard
+
+def get_newsletter_photo_keyboard() -> InlineKeyboardMarkup:
+    """Get keyboard for the photo step of newsletter creation"""
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="⏩ Skip Photo", callback_data="skip_newsletter_photo")
+            ],
+            [
+                InlineKeyboardButton(text="↩️ Cancel", callback_data="cancel_newsletter")
+            ]
+        ]
+    )
+    return keyboard
+
+def get_newsletter_file_keyboard() -> InlineKeyboardMarkup:
+    """Get keyboard for the file step of newsletter creation"""
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="⏩ Skip File Attachment", callback_data="skip_newsletter_file")
+            ],
+            [
+                InlineKeyboardButton(text="↩️ Cancel", callback_data="cancel_newsletter")
+            ]
+        ]
+    )
+    return keyboard
+
+def get_newsletter_button_keyboard() -> InlineKeyboardMarkup:
+    """Get keyboard for the button step of newsletter creation"""
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="⏩ Skip Button", callback_data="skip_newsletter_button")
+            ],
+            [
+                InlineKeyboardButton(text="↩️ Cancel", callback_data="cancel_newsletter")
+            ]
+        ]
+    )
+    return keyboard
+
+def get_newsletter_preview_keyboard() -> InlineKeyboardMarkup:
+    """Get keyboard for newsletter preview"""
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="📝 Edit Title", callback_data="edit_newsletter_title")
+            ],
+            [
+                InlineKeyboardButton(text="📝 Edit Message", callback_data="edit_newsletter_message")
+            ],
+            [
+                InlineKeyboardButton(text="📝 Edit Photo", callback_data="edit_newsletter_photo")
+            ],
+            [
+                InlineKeyboardButton(text="📝 Edit File", callback_data="edit_newsletter_file")
+            ],
+            [
+                InlineKeyboardButton(text="📝 Edit Button", callback_data="edit_newsletter_button")
+            ],
+            [
+                InlineKeyboardButton(text="💾 Save Draft", callback_data="save_newsletter_draft")
+            ],
+            [
+                InlineKeyboardButton(text="🚀 Send Now", callback_data="confirm_send_newsletter")
+            ],
+            [
+                InlineKeyboardButton(text="↩️ Cancel", callback_data="cancel_newsletter")
+            ]
+        ]
+    )
+    return keyboard
+
+def get_newsletter_confirm_delete_keyboard(newsletter_id: int) -> InlineKeyboardMarkup:
+    """Get confirmation keyboard for newsletter deletion"""
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="✅ Yes, Delete", 
+                    callback_data=f"confirm_delete_newsletter:{newsletter_id}"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="❌ No, Cancel", 
+                    callback_data=f"view_newsletter:{newsletter_id}"
+                )
+            ]
+        ]
+    )
+    return keyboard
+
+def get_newsletter_button_preview(text: str, url: str) -> InlineKeyboardMarkup:
+    """Get preview of the newsletter button"""
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text=text, url=url)
+            ]
+        ]
+    )
+    return keyboard
+
+    

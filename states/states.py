@@ -20,3 +20,13 @@ class PaymentState(StatesGroup):
     select_amount = State()
     select_method = State()
     confirm = State()
+
+class NewsletterState(StatesGroup):
+    """States for creating/editing a newsletter"""
+    title = State()
+    message_text = State()
+    photo = State()
+    file = State()
+    button = State()
+    preview = State()
+    confirm = State()

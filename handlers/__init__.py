@@ -7,6 +7,7 @@ from handlers.admin import register_admin_handlers
 from handlers.cart import register_cart_handlers
 from handlers.statistics import register_statistics_handlers
 from handlers.payment import register_payment_handlers
+from handlers.newsletter import register_newsletter_handlers
 
 def register_handlers(dp: Dispatcher):
     """Register all handlers"""
@@ -33,3 +34,6 @@ def register_handlers(dp: Dispatcher):
     
     # Register payment handlers
     register_payment_handlers(dp)
+    
+    # Register newsletter handlers
+    register_newsletter_handlers(dp)

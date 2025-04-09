@@ -19,6 +19,7 @@ class User(Base):
     
     # Relationships
     purchases = relationship("Purchase", back_populates="user")
+    newsletters = relationship("Newsletter", back_populates="creator")
     
     def __repr__(self):
         return f"<User(id={self.id}, telegram_id={self.telegram_id}, username={self.username})>"
@@ -70,3 +71,25 @@ class Purchase(Base):
     
     def __repr__(self):
         return f"<Purchase(id={self.id}, user_id={self.user_id}, product_id={self.product_id})>"
+
+class Newsletter(Base):
+    """Newsletter model for storing newsletter data"""
+    __tablename__ = 'newsletters'
+
+    id = Column(Integer, primary_key=True)
+    title = Column(String, nullable=False)
+    message = Column(Text, nullable=False)
+    photo_file_id = Column(String, nullable=True)
+    document_file_id = Column(String, nullable=True)
+    button_text = Column(String, nullable=True)
+    button_url = Column(String, nullable=True)
+    status = Column(String, default='draft')  # 'draft' or 'sent'
+    created_at = Column(DateTime, default=datetime.utcnow)
+    sent_at = Column(DateTime, nullable=True)
+    created_by = Column(Integer, ForeignKey('users.id'), nullable=False)
+
+    # Relationship with user who created the newsletter
+    creator = relationship("User", back_populates="newsletters")
+
+    def __repr__(self):
+        return f"<Newsletter(id={self.id}, title={self.title}, status={self.status})>"
