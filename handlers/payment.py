@@ -28,10 +28,10 @@ logger = logging.getLogger(__name__)
 
 # Define coin packages
 COIN_PACKAGES = {
-    "500": {"coins": 500, "price_usd": 25},
-    "1000": {"coins": 1000, "price_usd": 50},
-    "3000": {"coins": 3000, "price_usd": 150},
-    "10000": {"coins": 10000, "price_usd": 500}
+    "500": {"coins": 500, "price_usd": 5},
+    "1000": {"coins": 1000, "price_usd": 10},
+    "3000": {"coins": 3000, "price_usd": 30},
+    "10000": {"coins": 10000, "price_usd": 100}
 }
 
 # Define payment methods
