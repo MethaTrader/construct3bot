@@ -90,6 +90,26 @@ async def update_user_balance(telegram_id: int, new_balance: float) -> bool:
             return True
         return False
 
+async def add_user_balance(telegram_id: int, amount: float) -> tuple:
+    """Add amount to user balance and return success status with old and new balance"""
+    async with async_session() as session:
+        query = select(User).where(User.telegram_id == telegram_id)
+        result = await session.execute(query)
+        user = result.scalars().first()
+        
+        if not user:
+            logger.error(f"User {telegram_id} not found in database")
+            return False, 0, 0
+        
+        current_balance = user.balance
+        new_balance = current_balance + amount
+        user.balance = new_balance
+        user.last_active = datetime.utcnow()
+        
+        await session.commit()
+        logger.info(f"Updated balance for user {telegram_id}: {current_balance} -> {new_balance}")
+        return True, current_balance, new_balance
+
 async def get_user_by_username(username: str) -> User:
     """Get user by username"""
     async with async_session() as session:

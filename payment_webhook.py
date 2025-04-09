@@ -1,11 +1,14 @@
 from flask import Flask, request, jsonify
 import logging
 import os
-import sqlite3
 import jwt
 import requests
 import json
+import asyncio
 from datetime import datetime
+
+from config import load_config
+from database.methods import add_user_balance
 
 # Configure logging
 logging.basicConfig(
@@ -18,10 +21,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Configuration from environment variables
-DATABASE_URL = os.getenv('DATABASE_URL', 'data/database.sqlite3')
+# Load configuration
+config = load_config()
 SECRET_KEY = os.getenv('CRYPTOCLOUD_SECRET_KEY', '')
-BOT_TOKEN = os.getenv('BOT_TOKEN', '')
+BOT_TOKEN = config.bot_token
 DEFAULT_ADMIN_ID = os.getenv('DEFAULT_ADMIN_ID', '0')  # For fallback
 
 app = Flask(__name__)
@@ -43,37 +46,8 @@ def verify_token(token, invoice_id):
         return False
 
 def update_user_balance(user_id, amount):
-    """Update user balance in the database"""
-    try:
-        conn = sqlite3.connect(DATABASE_URL)
-        cursor = conn.cursor()
-        
-        # First, get current balance
-        cursor.execute("SELECT balance FROM users WHERE telegram_id = ?", (user_id,))
-        result = cursor.fetchone()
-        
-        if result:
-            current_balance = result[0]
-            new_balance = current_balance + amount
-            
-            # Update balance
-            now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-            cursor.execute(
-                "UPDATE users SET balance = ?, last_active = ? WHERE telegram_id = ?",
-                (new_balance, now, user_id)
-            )
-            conn.commit()
-            
-            logger.info(f"Updated balance for user {user_id}: {current_balance} -> {new_balance}")
-            return True, current_balance, new_balance
-        else:
-            logger.error(f"User {user_id} not found in database")
-            return False, 0, 0
-    except Exception as e:
-        logger.error(f"Database error: {e}")
-        return False, 0, 0
-    finally:
-        conn.close()
+    """Sync wrapper for add_user_balance"""
+    return asyncio.run(add_user_balance(user_id, amount))
 
 def send_telegram_notification(user_id, message):
     """Send a notification to the user via Telegram"""
@@ -214,7 +188,7 @@ def handle_webhook():
             coin_amount = estimate_coin_amount(amount_crypto)
             logger.info(f"Using estimated coin_amount: {coin_amount}")
         
-        # Update user balance
+        # Update user balance using our SQLAlchemy method from database.methods
         update_success, old_balance, new_balance = update_user_balance(user_id, coin_amount)
         
         if update_success:
@@ -252,9 +226,6 @@ def test_endpoint():
     })
 
 if __name__ == '__main__':
-    # Make sure the data directory exists
-    os.makedirs(os.path.dirname(DATABASE_URL), exist_ok=True)
-    
     # Start the Flask app
     port = int(os.getenv('WEBHOOK_PORT', 5000))
     app.run(host='0.0.0.0', port=port)
