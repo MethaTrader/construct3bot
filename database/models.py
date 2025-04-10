@@ -77,16 +77,21 @@ class Newsletter(Base):
     __tablename__ = 'newsletters'
 
     id = Column(Integer, primary_key=True)
-    title = Column(String, nullable=False)
-    message = Column(Text, nullable=False)
-    photo_file_id = Column(String, nullable=True)
-    document_file_id = Column(String, nullable=True)
-    button_text = Column(String, nullable=True)
+    title = Column(String(200), nullable=False)
+    message_text = Column(Text, nullable=False)
+    photo_id = Column(String, nullable=True)
+    file_id = Column(String, nullable=True)
+    file_name = Column(String, nullable=True)
+    button_text = Column(String(100), nullable=True)
     button_url = Column(String, nullable=True)
     status = Column(String, default='draft')  # 'draft' or 'sent'
     created_at = Column(DateTime, default=datetime.utcnow)
     sent_at = Column(DateTime, nullable=True)
     created_by = Column(Integer, ForeignKey('users.id'), nullable=False)
+    recipients_count = Column(Integer, nullable=True)
+    success_count = Column(Integer, nullable=True)
+    error_count = Column(Integer, nullable=True)
+    send_time = Column(Float, nullable=True)
 
     # Relationship with user who created the newsletter
     creator = relationship("User", back_populates="newsletters")

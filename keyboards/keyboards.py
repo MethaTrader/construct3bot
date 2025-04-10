@@ -313,25 +313,25 @@ def get_balance_topup_keyboard() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="500 coins (~$25)",
+                    text="500 coins (~$5)",
                     callback_data="topup:500"
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="1000 coins (~$50)",
+                    text="1000 coins (~$10)",
                     callback_data="topup:1000"
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="3000 coins (~$150)",
+                    text="3000 coins (~$30)",
                     callback_data="topup:3000"
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="10000 coins (~$500)",
+                    text="10000 coins (~$100)",
                     callback_data="topup:10000"
                 )
             ],

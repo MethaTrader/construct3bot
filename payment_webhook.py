@@ -99,10 +99,10 @@ def estimate_coin_amount(amount_value):
         amount_value = float(amount_value)
         # Simple mapping - adjust based on your actual pricing
         coin_packages = {
-            25: 500,   # ~$25 = 500 coins
-            50: 1000,  # ~$50 = 1000 coins
-            150: 3000, # ~$150 = 3000 coins
-            500: 10000 # ~$500 = 10000 coins
+            5: 500,   # ~$25 = 500 coins
+            10: 1000,  # ~$50 = 1000 coins
+            30: 3000, # ~$150 = 3000 coins
+            100: 10000 # ~$500 = 10000 coins
         }
         
         # Find closest package by price

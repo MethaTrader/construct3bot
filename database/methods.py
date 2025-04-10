@@ -477,19 +477,20 @@ async def get_recent_purchases_data(since_date: datetime) -> list:
         logger.error(f"Error getting recent purchases data: {e}")
         return []
 
-async def create_newsletter(newsletter_data: dict) -> Newsletter:
+async def create_newsletter(data: dict, user_id: int) -> Newsletter:
     """Create a new newsletter"""
     try:
         async with async_session() as session:
             newsletter = Newsletter(
-                title=newsletter_data.get('title'),
-                message_text=newsletter_data.get('message_text'),
-                photo_id=newsletter_data.get('photo_id'),
-                file_id=newsletter_data.get('file_id'),
-                file_name=newsletter_data.get('file_name'),
-                button_text=newsletter_data.get('button_text'),
-                button_url=newsletter_data.get('button_url'),
-                status="draft"
+                title=data['title'],
+                message_text=data['message_text'],
+                photo_id=data.get('photo_id'),
+                file_id=data.get('file_id'),
+                file_name=data.get('file_name'),
+                button_text=data.get('button_text'),
+                button_url=data.get('button_url'),
+                status='draft',
+                created_by=user_id  # Add the creator's ID
             )
             session.add(newsletter)
             await session.commit()

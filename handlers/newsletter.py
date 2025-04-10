@@ -33,6 +33,7 @@ from keyboards.keyboards import (
     get_admin_keyboard
 )
 from states.states import NewsletterState
+from utils.admin import is_admin
 
 # Load config to get admin IDs
 config = load_config()
@@ -425,8 +426,11 @@ async def process_newsletter_button(message: Message, state: FSMContext):
             f"{hcode('Button Text | https://example.com')}"
         )
 
+# todo: Fix save and notify newsletter maybe DB
+
 async def skip_newsletter_button(callback: CallbackQuery, state: FSMContext):
     """Skip adding a button to the newsletter"""
+
     if not await is_admin(callback.from_user.id):
         await callback.answer("Access denied", show_alert=True)
         return
@@ -440,7 +444,8 @@ async def skip_newsletter_button(callback: CallbackQuery, state: FSMContext):
 
 async def show_newsletter_preview(message: Message, state: FSMContext):
     """Show preview of the newsletter before saving/sending"""
-    if not await is_admin(message.from_user.id):
+    if not await is_admin(message.chat.id):
+        
         await message.answer("Access denied")
         await state.clear()
         return
@@ -547,8 +552,8 @@ async def save_newsletter_draft(callback: CallbackQuery, state: FSMContext):
     # Get all data from state
     data = await state.get_data()
     
-    # Create newsletter
-    newsletter = await create_newsletter(data)
+    # Create newsletter with user ID
+    newsletter = await create_newsletter(data, callback.from_user.id)
     
     if newsletter:
         await callback.message.answer(
@@ -606,8 +611,8 @@ async def process_send_confirmation(message: Message, state: FSMContext):
     # Get all data from state
     data = await state.get_data()
     
-    # First save the newsletter to the database
-    newsletter = await create_newsletter(data)
+    # Create newsletter with user ID
+    newsletter = await create_newsletter(data, message.from_user.id)
     
     if not newsletter:
         await message.answer(
