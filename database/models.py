@@ -14,7 +14,6 @@ class User(Base):
     first_name = Column(String(100), nullable=True)
     last_name = Column(String(100), nullable=True)
     balance = Column(Float, default=0.0)
-    premium = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     last_active = Column(DateTime, default=datetime.utcnow)
 
