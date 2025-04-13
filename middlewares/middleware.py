@@ -22,9 +22,13 @@ class LoggingMiddleware(BaseMiddleware):
         # Process the event through handler
         return await handler(event, data)
 
+
 def setup_middlewares(dp: Dispatcher):
     """Setup all middlewares"""
+    # Добавьте ручной лог, чтобы проверить, что функция вызывается
+    logger.info("Setting up middlewares...")
+
     # Register logging middleware
     dp.message.middleware(LoggingMiddleware())
-    
+
     logger.info("Middlewares setup complete")
