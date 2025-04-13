@@ -15,3 +15,13 @@ ENV/
 
 # Logs
 *.log
+/.idea/discord.xml
+/.idea/.gitignore
+/.idea/construct3bot.iml
+/.idea/material_theme_project_new.xml
+/.idea/misc.xml
+/.idea/modules.xml
+/.idea/inspectionProfiles/profiles_settings.xml
+/migrations/README
+/migrations/script.py.mako
+/.idea/vcs.xml
